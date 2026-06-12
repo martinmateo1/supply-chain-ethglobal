@@ -1,0 +1,126 @@
+import type { Account, Holding } from "@/lib/types"
+
+export const SEED_ACCOUNTS: Account[] = [
+  {
+    id: "campo",
+    name: "Campo",
+    stageType: "campo",
+    order: 0,
+    location: "Pergamino, Buenos Aires",
+    operator: "Estancia La Aurora",
+  },
+  {
+    id: "transporte-1",
+    name: "Transporte",
+    stageType: "transporte",
+    order: 1,
+    operator: "Logística del Sur",
+  },
+  {
+    id: "silo",
+    name: "Silo",
+    stageType: "silo",
+    order: 2,
+    location: "Rosario, Santa Fe",
+    operator: "Cooperativa Granero",
+  },
+  {
+    id: "transporte-2",
+    name: "Transporte",
+    stageType: "transporte",
+    order: 3,
+    operator: "Fletes del Litoral",
+  },
+  {
+    id: "puerto",
+    name: "Puerto",
+    stageType: "puerto",
+    order: 4,
+    location: "Puerto de San Lorenzo",
+    operator: "Terminal Norte",
+  },
+  {
+    id: "transporte-3",
+    name: "Transporte",
+    stageType: "transporte",
+    order: 5,
+    operator: "Transporte Portuario",
+  },
+  {
+    id: "planta",
+    name: "Planta de procesamiento",
+    stageType: "planta",
+    order: 6,
+    location: "San Lorenzo, Santa Fe",
+    operator: "Aceitera del Paraná",
+  },
+]
+
+export const SEED_HOLDINGS: Holding[] = [
+  {
+    id: "h1",
+    accountId: "campo",
+    commodity: "soybean",
+    certifications: ["non-gmo", "deforestation-free"],
+    quantity: 120,
+    unit: "tons",
+  },
+  {
+    id: "h2",
+    accountId: "campo",
+    commodity: "corn",
+    certifications: ["non-gmo"],
+    quantity: 80,
+    unit: "tons",
+  },
+  {
+    id: "h3",
+    accountId: "campo",
+    commodity: "soybean",
+    certifications: ["non-gmo"],
+    quantity: 45,
+    unit: "tons",
+  },
+  {
+    id: "h4",
+    accountId: "transporte-1",
+    commodity: "soybean",
+    certifications: ["non-gmo", "deforestation-free"],
+    quantity: 60,
+    unit: "tons",
+  },
+  {
+    id: "h5",
+    accountId: "silo",
+    commodity: "wheat",
+    certifications: ["deforestation-free"],
+    quantity: 200,
+    unit: "tons",
+  },
+  {
+    id: "h6",
+    accountId: "silo",
+    commodity: "corn",
+    certifications: ["non-gmo", "deforestation-free"],
+    quantity: 150,
+    unit: "tons",
+  },
+  {
+    id: "h7",
+    accountId: "puerto",
+    commodity: "soybean",
+    certifications: ["non-gmo", "deforestation-free"],
+    quantity: 90,
+    unit: "tons",
+  },
+  {
+    id: "h8",
+    accountId: "planta",
+    commodity: "soybean",
+    certifications: ["non-gmo"],
+    quantity: 30,
+    unit: "tons",
+  },
+]
+
+export const DEFAULT_SELECTED_ACCOUNT_ID = SEED_ACCOUNTS[0]?.id ?? "campo"
