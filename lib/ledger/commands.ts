@@ -17,6 +17,17 @@ export type InitiateTransferCommand = {
   lotPositionId: string
   amount: string
   unit: string
+  evidenceHashes?: string[]
+}
+
+export type AcceptTransferCommand = {
+  partyId: string
+  transferId: string
+}
+
+export type RejectTransferCommand = {
+  partyId: string
+  transferId: string
 }
 
 /**
@@ -34,7 +45,21 @@ export const ledgerCommands = {
   initiateTransfer(_input: InitiateTransferCommand): never {
     throw new LedgerError(
       LedgerErrorCode.LEDGER_NOT_CONFIGURED,
-      "initiateTransfer is not implemented until Epic 2 custody transfer stories land.",
+      "initiateTransfer Canton path is not wired — use app/api/ledger/initiate-transfer (demo adapter).",
+    )
+  },
+
+  acceptTransfer(_input: AcceptTransferCommand): never {
+    throw new LedgerError(
+      LedgerErrorCode.LEDGER_NOT_CONFIGURED,
+      "acceptTransfer Canton path is not wired — use app/api/ledger/accept-transfer (demo adapter).",
+    )
+  },
+
+  rejectTransfer(_input: RejectTransferCommand): never {
+    throw new LedgerError(
+      LedgerErrorCode.LEDGER_NOT_CONFIGURED,
+      "rejectTransfer Canton path is not wired — use app/api/ledger/reject-transfer (demo adapter).",
     )
   },
 }

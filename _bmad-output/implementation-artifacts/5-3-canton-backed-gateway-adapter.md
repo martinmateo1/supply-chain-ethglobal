@@ -1,0 +1,74 @@
+---
+baseline_commit: 602165419bb2ae679c6ca6c7eeb66db22afb557c
+---
+
+# Story 5.3: Canton-Backed Gateway Adapter Behind a Feature Flag
+
+Status: ready-for-dev
+
+## Story
+
+As a custody operator,
+I want the existing `/api/ledger/*` routes to talk to Canton when enabled,
+so that custody actions are submitted to the ledger without changing the frontend contract.
+
+## Acceptance Criteria
+
+1. Given the demo adapter currently serves custody actions, when a `LEDGER_BACKEND` feature flag is introduced (`demo` default, `canton` opt-in), then `LEDGER_BACKEND=canton` routes `initiate-transfer`, `accept-transfer`, `reject-transfer`, and `transfer-history` through `lib/ledger/*` to Canton, and `LEDGER_BACKEND=demo` keeps the existing `lib/demo/custody-service.ts` behavior unchanged.
+2. Given the Canton client is needed, when `lib/ledger/client.ts`, `commands.ts`, and `queries.ts` are implemented, then they submit/query via the Canton JSON API (or chosen driver) using `CANTON_LEDGER_HOST`/`CANTON_LEDGER_ID`, and `lib/ledger/mappers.ts` converts ledger payloads to the existing UI domain types and `ApiResponse<T>` envelope.
+3. Given an active Party View, when a custody action is submitted via the Canton backend, then the gateway maps the Party View to the correct Canton party, and unauthorized party/action combinations are rejected by ledger authorization and surfaced as stable `ApiResponse` errors.
+4. Given a Canton submission fails (insufficient quantity, unauthorized, contention, ledger unavailable), when the route returns, then the failure is mapped to a stable error code via `lib/ledger/errors.ts`, and no private cross-party details leak in the error response.
+
+## Tasks / Subtasks
+
+- [ ] Add `LEDGER_BACKEND` resolution (`demo` | `canton`, default `demo`) in a single server-side helper. (AC: 1)
+- [ ] Implement `lib/ledger/client.ts`: real Canton JSON API client (currently throws `LEDGER_NOT_CONFIGURED`). (AC: 2)
+- [ ] Implement `lib/ledger/commands.ts` `createLot` / `initiateTransfer` / `acceptTransfer` / `rejectTransfer` (currently `never` stubs) against generated bindings from Story 5.2. (AC: 1, 2, 3)
+- [ ] Implement `lib/ledger/queries.ts` `visibleHoldings` / `transferHistory` (currently `never` stubs) as Party View-aware reads. (AC: 2, 3)
+- [ ] Implement `lib/ledger/mappers.ts` to convert Canton contract payloads ↔ `lib/types.ts` shapes. (AC: 2)
+- [ ] Map Party View → Canton party using the config/party-hints from Story 5.2. (AC: 3)
+- [ ] Switch each `app/api/ledger/*` route to dispatch on `LEDGER_BACKEND`, keeping the `ApiResponse` envelope and `ledgerRouteError` mapping. (AC: 1, 4)
+- [ ] Extend `lib/ledger/errors.ts` with Canton-failure → stable code mapping (insufficient quantity, unauthorized, contention, unavailable). (AC: 4)
+
+## Dev Notes
+
+### Dependencies
+
+- **Blocked by 5.1 (choices) and 5.2 (parties + generated bindings).**
+
+### Current State (verified)
+
+- `lib/ledger/client.ts` throws `LEDGER_NOT_CONFIGURED` unless `CANTON_LEDGER_HOST` and `CANTON_LEDGER_ID` are set.
+- `lib/ledger/commands.ts` and `queries.ts` are `never`-returning stubs that point to the demo routes; signatures already exist (`CreateLotCommand`, `InitiateTransferCommand`, `AcceptTransferCommand`, `RejectTransferCommand`, `VisibleHoldingsQuery`, `TransferHistoryQuery`) — reuse them.
+- `app/api/ledger/{initiate-transfer,accept-transfer,reject-transfer,transfer-history}/route.ts` currently call `lib/demo/custody-service.ts` and return via `ledgerRouteSuccess`/`ledgerRouteError` (`lib/api/ledger-route.ts`) using the `ApiResponse<T>` envelope (`lib/api/response.ts`).
+- The demo path round-trips a client `snapshot`; the Canton path must NOT depend on a client snapshot (truth comes from the ledger). Snapshot removal for the Canton path is finished in Story 5.4.
+
+### Design Notes
+
+- Keep the route request/response contract stable so the frontend hook (`hooks/use-custody-gateway.ts`) needs minimal change; the backend swap should be invisible to components.
+- The browser must never construct raw Canton commands (`architecture.md` gateway decision). All command construction stays in `lib/ledger/*` server-side.
+- Authorization should be enforced by Daml choices; the gateway maps Party View → party and surfaces ledger rejections as stable errors — it does not reimplement authorization.
+
+### Testing Requirements
+
+- With `LEDGER_BACKEND=demo`: existing `pnpm verify:custody-transfers` and current UI behavior unchanged (regression guard).
+- With `LEDGER_BACKEND=canton` against a running `dpm sandbox`: initiate/accept/reject succeed and unauthorized attempts are rejected with stable errors.
+- `pnpm lint` and `pnpm typecheck` must pass.
+
+### References
+
+- `_bmad-output/planning-artifacts/epics/epic-5-canton-ledger-integration.md`
+- `lib/ledger/client.ts`, `lib/ledger/commands.ts`, `lib/ledger/queries.ts`, `lib/ledger/errors.ts`, `lib/ledger/mappers.ts`
+- `app/api/ledger/*/route.ts`, `lib/api/response.ts`, `lib/api/ledger-route.ts`, `lib/demo/custody-service.ts`
+
+## Dev Agent Record
+
+### Agent Model Used
+
+### Debug Log References
+
+### Completion Notes List
+
+### File List
+
+### Change Log

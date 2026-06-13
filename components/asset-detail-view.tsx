@@ -92,10 +92,11 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
 
     return transfers
       .filter((transfer) => transferMatchesAsset(transfer, asset))
-      .sort(
-        (a, b) =>
-          new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()
-      )
+          .sort(
+            (a, b) =>
+              new Date(b.occurredAt ?? b.createdAt).getTime() -
+              new Date(a.occurredAt ?? a.createdAt).getTime()
+          )
   }, [asset, transfers])
   const isVisible = useMemo(() => {
     if (!asset) return false
@@ -330,7 +331,7 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
                     </p>
                     <p className="mt-0.5 text-sm text-muted-foreground">
                       {formatTons(transfer.quantity)}t ·{" "}
-                      {formatTransferDate(transfer.occurredAt)}
+                      {formatTransferDate(transfer.occurredAt ?? transfer.createdAt)}
                     </p>
                     {transfer.attachments && transfer.attachments.length > 0 ? (
                       <p className="mt-1 text-xs text-muted-foreground">

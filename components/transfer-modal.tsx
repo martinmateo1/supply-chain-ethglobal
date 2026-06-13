@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { useCustodyGateway } from "@/hooks/use-custody-gateway"
 import { useTraceabilityStore } from "@/lib/store"
 import { COMMODITY_META, STAGE_META, type Asset } from "@/lib/types"
 import { formatTons } from "@/lib/utils"
@@ -47,7 +48,7 @@ export function TransferModal({
   const accounts = useTraceabilityStore((state) => state.accounts)
   const assetsByAccount = useTraceabilityStore((state) => state.assetsByAccount)
   const accountTotalTons = useTraceabilityStore((state) => state.accountTotalTons)
-  const addTransfer = useTraceabilityStore((state) => state.addTransfer)
+  const { initiateTransfer } = useCustodyGateway()
 
   const fromAccount = accounts.find((account) => account.id === fromAccountId)
   const [toAccountId, setToAccountId] = useState("")
@@ -73,15 +74,15 @@ export function TransferModal({
     day: "numeric",
   })
 
-  function handleConfirm() {
+  async function handleConfirm() {
     if (!toAccountId || !selectedAssetId || !isQuantityValid) return
-    addTransfer({
+    const result = await initiateTransfer({
       fromAccountId,
       toAccountId,
       assetId: selectedAssetId,
       quantity,
     })
-    setSubmitted(true)
+    if (result.ok) setSubmitted(true)
   }
 
   function handleOpenChange(value: boolean) {
