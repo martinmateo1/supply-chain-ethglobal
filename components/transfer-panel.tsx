@@ -23,6 +23,7 @@ import {
   type TransferAttachment,
 } from "@/lib/types"
 import { formatTons } from "@/lib/utils"
+import { deterministicHash, tokenId } from "@/lib/provenance"
 
 type TransferPanelProps = {
   onClose: () => void
@@ -35,20 +36,6 @@ function assetLabel(asset: Asset): string {
     .map((c) => (c === "non-gmo" ? "NON-GMO" : "Deforestation-free"))
     .join(", ")
   return `${commodity} · ${certs} · ${asset.rating} · ${formatTons(asset.quantity)}t`
-}
-
-function deterministicHash(seed: string): string {
-  let hash = 2166136261
-  for (let i = 0; i < seed.length; i++) {
-    hash ^= seed.charCodeAt(i)
-    hash = Math.imul(hash, 16777619)
-  }
-  return `0x${(hash >>> 0).toString(16).padStart(8, "0").slice(0, 8)}`
-}
-
-function tokenId(assetId: string): string {
-  const suffix = assetId.replace(/^a/, "").slice(-4).padStart(4, "0")
-  return `#A-${suffix}`
 }
 
 export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
