@@ -1,12 +1,12 @@
 import Link from "next/link"
 
+import { CommodityThumbnail } from "@/components/commodity-thumbnail"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   CERTIFICATION_META,
   COMMODITY_META,
   RATING_META,
-  assetImage,
   type Asset,
 } from "@/lib/types"
 import { cn, formatTons } from "@/lib/utils"
@@ -24,15 +24,11 @@ export function AssetRow({ asset }: AssetRowProps) {
       role="listitem"
       className="flex w-full items-center gap-3 border-b border-border p-4 last:border-b-0"
     >
-      <div className="size-12 shrink-0 overflow-hidden rounded-xl border border-border/60 bg-muted">
-        <img
-          src={assetImage(asset)}
-          alt={commodity.label}
-          width={48}
-          height={48}
-          className="size-full object-cover"
-        />
-      </div>
+      <CommodityThumbnail
+        commodity={asset.commodity}
+        certifications={asset.certifications}
+        size={48}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-center justify-between gap-3">

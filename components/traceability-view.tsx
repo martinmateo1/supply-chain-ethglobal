@@ -1,10 +1,13 @@
 "use client"
 
-import { ArrowLeftRight } from "lucide-react"
+import { ArrowLeftRight, PackagePlus } from "lucide-react"
 import { useState } from "react"
 
 import { AssetsPanel } from "@/components/assets-panel"
+import { CreateLotPanel } from "@/components/create-lot-panel"
+import { DemoStepper } from "@/components/demo-stepper"
 import { HistoryPanel } from "@/components/history-panel"
+import { PrivacyCallout } from "@/components/privacy-callout"
 import { TransferPanel } from "@/components/transfer-panel"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -16,163 +19,286 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion"
+import {
+  DEMO_PARTY_VIEWS,
+  isRoutePartyView,
+  partyViewById,
+  partyViewLabel,
+  partyViewNodeLabel,
+  partyViewRoleLabel,
+} from "@/lib/demo/party-views"
+import { isPrivatePartyView } from "@/lib/provenance"
 import { useTraceabilityStore } from "@/lib/store"
 import { STAGE_META } from "@/lib/types"
 import { cn, formatTons } from "@/lib/utils"
 
+type SidePanel = "none" | "transfer" | "create-lot"
+
 export function TraceabilityView() {
   const accounts = useTraceabilityStore((state) => state.accounts)
-  const selectedAccountId = useTraceabilityStore(
-    (state) => state.selectedAccountId
+  const selectedPartyViewId = useTraceabilityStore(
+    (state) => state.selectedPartyViewId
   )
-  const selectAccount = useTraceabilityStore((state) => state.selectAccount)
-  const assetsByAccount = useTraceabilityStore((state) => state.assetsByAccount)
-  const accountTotalTons = useTraceabilityStore(
-    (state) => state.accountTotalTons
+  const selectPartyView = useTraceabilityStore((state) => state.selectPartyView)
+  const visibleAssetsForPartyView = useTraceabilityStore(
+    (state) => state.visibleAssetsForPartyView
   )
-  const transfersSentByAccount = useTraceabilityStore(
-    (state) => state.transfersSentByAccount
+  const partyViewVisibleTotalTons = useTraceabilityStore(
+    (state) => state.partyViewVisibleTotalTons
   )
-  const transfersReceivedByAccount = useTraceabilityStore(
-    (state) => state.transfersReceivedByAccount
+  const visibleTransfersSentForPartyView = useTraceabilityStore(
+    (state) => state.visibleTransfersSentForPartyView
   )
-  const selectedAccount = accounts.find(
-    (account) => account.id === selectedAccountId
+  const visibleTransfersReceivedForPartyView = useTraceabilityStore(
+    (state) => state.visibleTransfersReceivedForPartyView
   )
+
+  const selectedPartyView = partyViewById(selectedPartyViewId)
+  const privacyProof = isPrivatePartyView(selectedPartyViewId)
+  const visibleAssets = visibleAssetsForPartyView(selectedPartyViewId)
+  const visibleSent = visibleTransfersSentForPartyView(selectedPartyViewId)
+  const visibleReceived = visibleTransfersReceivedForPartyView(
+    selectedPartyViewId
+  )
+  const visibleTotalTons = partyViewVisibleTotalTons(selectedPartyViewId)
+  const operationalNodeId = selectedPartyView?.operationalNodeId ?? null
+  const canTransfer = Boolean(operationalNodeId) && !privacyProof
+  const canCreateLot =
+    selectedPartyView?.companyRole === "producer" &&
+    operationalNodeId === "production-site"
+
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const slideClass = prefersReducedMotion
+    ? ""
+    : "transition-transform duration-[350ms] ease-in-out"
+  const panelSlideClass = prefersReducedMotion
+    ? ""
+    : "transition-transform duration-[600ms] delay-[60ms] ease-out"
+
   const [contentView, setContentView] = useState("assets")
-  const [transferOpen, setTransferOpen] = useState(false)
+  const [sidePanel, setSidePanel] = useState<SidePanel>("none")
+  const panelOpen = sidePanel !== "none"
 
   function accountNameById(id: string): string {
     return accounts.find((account) => account.id === id)?.name ?? id
   }
 
+  function handleSelectPartyView(id: string) {
+    selectPartyView(id)
+    setSidePanel("none")
+  }
+
   return (
-    // Outer viewport: fixed height so each panel scrolls independently
     <div className="h-svh w-full overflow-hidden">
-      {/*
-        The row holds both panels side by side.
-        Sliding it left by 420px reveals the transfer panel that was
-        already sitting to the right — nothing animates "in", it's just uncovered.
-      */}
       <div
         className={cn(
-          "flex h-full transition-transform duration-[350ms] ease-in-out",
-          transferOpen && "-translate-x-[180px]"
+          "flex h-full",
+          slideClass,
+          panelOpen && "-translate-x-[180px]"
         )}
       >
-        {/* ── Main content ───────────────────────────── */}
         <div className="h-svh w-full min-w-0 flex-shrink-0 overflow-y-auto overscroll-y-contain">
           <div className="mx-auto w-full max-w-4xl px-6 py-8 pb-28">
+            <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+              <div>
+                {selectedPartyView ? (
+                  <>
+                    <h1 className="text-2xl font-semibold">
+                      {partyViewLabel(selectedPartyView)}
+                    </h1>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {partyViewRoleLabel(selectedPartyView)}
+                      {partyViewNodeLabel(selectedPartyView)
+                        ? ` · ${partyViewNodeLabel(selectedPartyView)}`
+                        : privacyProof
+                          ? " · Unrelated to the demo custody route"
+                          : null}
+                      {" · "}
+                      {formatTons(visibleTotalTons)}t visible
+                    </p>
+                  </>
+                ) : null}
+              </div>
+
+              <div className="flex shrink-0 flex-wrap gap-2">
+                {canCreateLot ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "rounded-full bg-white dark:bg-background",
+                      panelOpen && "pointer-events-none opacity-0"
+                    )}
+                    onClick={() => setSidePanel("create-lot")}
+                  >
+                    <PackagePlus />
+                    Create Lot
+                  </Button>
+                ) : null}
+                {canTransfer ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "rounded-full bg-white dark:bg-background",
+                      panelOpen && "pointer-events-none opacity-0"
+                    )}
+                    onClick={() => setSidePanel("transfer")}
+                  >
+                    <ArrowLeftRight />
+                    Transfer custody
+                  </Button>
+                ) : null}
+              </div>
+            </header>
+
+            <DemoStepper
+              selectedPartyViewId={selectedPartyViewId}
+              onSelectPartyView={handleSelectPartyView}
+            />
+
+            {selectedPartyView ? (
+              <PrivacyCallout partyView={selectedPartyView} />
+            ) : null}
+
             <Tabs
-              value={selectedAccountId}
-              onValueChange={selectAccount}
-              className="@container/main w-full"
+              value={contentView}
+              onValueChange={setContentView}
+              className="mb-4 w-full"
             >
-              <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  {selectedAccount ? (
-                    <>
-                      <h1 className="text-2xl font-semibold">
-                        Welcome {selectedAccount.name} user,
-                      </h1>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Viewing coffee and cacao custody across the demo route.
-                      </p>
-                    </>
-                  ) : null}
-                </div>
+              <TabsList variant="line">
+                <TabsTrigger value="assets">
+                  Lot positions
+                  <span className="sr-only">
+                    — commodity holdings visible to this Party View
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger value="history">
+                  Custody history
+                  <span className="sr-only">
+                    — custody transfers visible to this Party View
+                  </span>
+                </TabsTrigger>
+              </TabsList>
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className={cn(
-                    "shrink-0 rounded-full bg-white transition-opacity duration-300 dark:bg-background",
-                    transferOpen && "pointer-events-none opacity-0"
-                  )}
-                  onClick={() => setTransferOpen(true)}
-                >
-                  <ArrowLeftRight />
-                  Transfer Assets
-                </Button>
-              </header>
-
-              <Tabs
-                value={contentView}
-                onValueChange={setContentView}
-                className="mb-4 w-full"
-              >
-                <TabsList variant="line">
-                  <TabsTrigger value="assets">Assets</TabsTrigger>
-                  <TabsTrigger value="history">History</TabsTrigger>
-                </TabsList>
-              </Tabs>
-
-              <div className="overflow-hidden rounded-lg bg-muted">
-                {accounts.map((account) => {
-                  const assets = assetsByAccount(account.id)
-                  return (
-                    <TabsContent
-                      key={account.id}
-                      value={account.id}
-                      className="bg-muted"
-                    >
-                      {contentView === "assets" ? (
-                        <AssetsPanel account={account} assets={assets} />
-                      ) : (
-                        <HistoryPanel
-                          account={account}
-                          sent={transfersSentByAccount(account.id)}
-                          received={transfersReceivedByAccount(account.id)}
-                          accountNameById={accountNameById}
-                        />
-                      )}
-                    </TabsContent>
-                  )
-                })}
+              <div className="mt-4 overflow-hidden rounded-lg bg-muted">
+                <TabsContent value="assets" className="bg-muted">
+                  <AssetsPanel
+                    assets={visibleAssets}
+                    accounts={accounts}
+                    privacyProof={privacyProof}
+                  />
+                </TabsContent>
+                <TabsContent value="history" className="bg-muted">
+                  <HistoryPanel
+                    sent={visibleSent}
+                    received={visibleReceived}
+                    accountNameById={accountNameById}
+                    privacyProof={privacyProof}
+                  />
+                </TabsContent>
               </div>
             </Tabs>
           </div>
         </div>
 
-        {/* ── Transfer panel — always in the DOM, to the right ── */}
-        <aside
-          className={cn(
-            "h-svh w-[420px] flex-shrink-0 overflow-y-auto overscroll-y-contain border-l border-border bg-background px-6 py-8 pb-28 transition-transform duration-[600ms] delay-[60ms] ease-out",
-            transferOpen && "-translate-x-[240px]"
-          )}
-          aria-hidden={!transferOpen}
-        >
-          <TransferPanel
-            key={selectedAccountId}
-            onClose={() => setTransferOpen(false)}
-            fromAccountId={selectedAccountId}
-          />
-        </aside>
+        {canTransfer && operationalNodeId && sidePanel === "transfer" ? (
+          <aside
+            className={cn(
+              "h-svh w-[420px] flex-shrink-0 overflow-y-auto overscroll-y-contain border-l border-border bg-background px-6 py-8 pb-28",
+              panelSlideClass,
+              panelOpen && "-translate-x-[240px]"
+            )}
+            aria-hidden={!panelOpen}
+          >
+            <TransferPanel
+              key={operationalNodeId}
+              onClose={() => setSidePanel("none")}
+              fromAccountId={operationalNodeId}
+            />
+          </aside>
+        ) : null}
+
+        {canCreateLot && operationalNodeId && sidePanel === "create-lot" ? (
+          <aside
+            className={cn(
+              "h-svh w-[420px] flex-shrink-0 overflow-y-auto overscroll-y-contain border-l border-border bg-background px-6 py-8 pb-28",
+              panelSlideClass,
+              panelOpen && "-translate-x-[240px]"
+            )}
+            aria-hidden={!panelOpen}
+          >
+            <CreateLotPanel
+              key={`create-${operationalNodeId}`}
+              onClose={() => setSidePanel("none")}
+              operationalNodeId={operationalNodeId}
+            />
+          </aside>
+        ) : null}
       </div>
 
-      {/* Account selector — fixed so it stays put during the slide */}
       <div className="fixed bottom-6 left-6 z-50">
-        <Label htmlFor="account-selector" className="sr-only">
-          Account
+        <Label htmlFor="party-view-selector" className="sr-only">
+          Party View
         </Label>
-        <Select value={selectedAccountId} onValueChange={selectAccount}>
+        <Select value={selectedPartyViewId} onValueChange={handleSelectPartyView}>
           <SelectTrigger
-            id="account-selector"
+            id="party-view-selector"
             size="sm"
-            className="rounded-full bg-white shadow-lg dark:bg-background"
+            className="max-w-[min(100vw-3rem,28rem)] rounded-full bg-white shadow-lg dark:bg-background"
           >
-            <SelectValue placeholder="Select an account" />
+            {selectedPartyView ? (
+              <span className="truncate text-left text-sm">
+                <span className="font-medium">
+                  {partyViewLabel(selectedPartyView)}
+                </span>
+                <span className="text-muted-foreground">
+                  {" "}
+                  · {partyViewRoleLabel(selectedPartyView)}
+                  {partyViewNodeLabel(selectedPartyView)
+                    ? ` · ${partyViewNodeLabel(selectedPartyView)}`
+                    : ""}
+                  {" "}
+                  · {formatTons(visibleTotalTons)}t
+                </span>
+              </span>
+            ) : (
+              <SelectValue placeholder="Select a Party View" />
+            )}
           </SelectTrigger>
           <SelectContent>
-            {accounts.map((account) => {
-              const StageIcon = STAGE_META[account.stageType].icon
+            {DEMO_PARTY_VIEWS.map((view) => {
+              const totalTons = partyViewVisibleTotalTons(view.id)
+              const nodeLabel = partyViewNodeLabel(view)
+              const roleLabel = partyViewRoleLabel(view)
+              const StageIcon = view.operationalNodeId
+                ? STAGE_META[
+                    accounts.find((a) => a.id === view.operationalNodeId)
+                      ?.stageType ?? "production"
+                  ].icon
+                : null
+
               return (
-                <SelectItem key={account.id} value={account.id}>
-                  <StageIcon className="size-4 text-muted-foreground" />
-                  <span>{account.name}</span>
+                <SelectItem key={view.id} value={view.id}>
+                  {StageIcon ? (
+                    <StageIcon className="size-4 text-muted-foreground" />
+                  ) : null}
+                  <span className="min-w-0 truncate">
+                    {partyViewLabel(view)}
+                  </span>
                   <span className="text-muted-foreground">
-                    ({formatTons(accountTotalTons(account.id))}t)
+                    {isRoutePartyView(view)
+                      ? `(${formatTons(totalTons)}t)`
+                      : view.companyRole === "non-involved"
+                        ? "(unrelated)"
+                        : `(${formatTons(totalTons)}t)`}
+                  </span>
+                  <span className="sr-only">
+                    {roleLabel}
+                    {nodeLabel ? ` · ${nodeLabel}` : ""}
                   </span>
                 </SelectItem>
               )

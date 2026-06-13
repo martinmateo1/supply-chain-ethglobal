@@ -1,14 +1,14 @@
-import { History } from "lucide-react"
+import { EyeOff, History } from "lucide-react"
 
 import { TransferRow } from "@/components/transfer-row"
 import { ItemGroup } from "@/components/ui/item"
-import type { Account, Transfer } from "@/lib/types"
+import type { Transfer } from "@/lib/types"
 
 type HistoryPanelProps = {
-  account: Account | undefined
   sent: Transfer[]
   received: Transfer[]
   accountNameById: (id: string) => string
+  privacyProof?: boolean
 }
 
 function TransferSection({
@@ -51,30 +51,36 @@ function TransferSection({
 }
 
 export function HistoryPanel({
-  account,
   sent,
   received,
   accountNameById,
+  privacyProof = false,
 }: HistoryPanelProps) {
-  if (!account) {
-    return (
-      <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
-        Select an account to view its history
-      </div>
-    )
-  }
-
   const hasHistory = sent.length > 0 || received.length > 0
 
   return (
     <div className="flex flex-col">
       {!hasHistory ? (
         <div className="flex h-full min-h-[280px] flex-col items-center justify-center rounded-xl border border-dashed bg-muted/30 px-6 text-center">
-          <History className="mb-3 size-10 text-muted-foreground/60" />
-          <p className="font-medium">No history yet</p>
-          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            Asset transfers and activity for this account will appear here.
-          </p>
+          {privacyProof ? (
+            <>
+              <EyeOff className="mb-3 size-10 text-muted-foreground/60" />
+              <p className="font-medium">No private transfer history visible</p>
+              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                No private contracts are visible to this company. Custody
+                transfers and evidence on the demo route are hidden from
+                unrelated parties by Canton selective visibility.
+              </p>
+            </>
+          ) : (
+            <>
+              <History className="mb-3 size-10 text-muted-foreground/60" />
+              <p className="font-medium">No custody history yet</p>
+              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                Custody transfers visible to this Party View will appear here.
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <div className="space-y-6">

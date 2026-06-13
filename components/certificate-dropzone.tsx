@@ -22,12 +22,16 @@ type CertificateDropzoneProps = {
   attachments: TransferAttachment[]
   onChange: (attachments: TransferAttachment[]) => void
   disabled?: boolean
+  label?: string
+  description?: string
 }
 
 export function CertificateDropzone({
   attachments,
   onChange,
   disabled = false,
+  label = "Supporting documentation",
+  description = "Attach one or more documents that support this transfer, such as transport sheets or receipts.",
 }: CertificateDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -92,11 +96,8 @@ export function CertificateDropzone({
   return (
     <div className="space-y-2">
       <div className="space-y-1">
-        <Label>Supporting documentation</Label>
-        <p className="text-xs text-muted-foreground">
-          Attach one or more documents that support this transfer, such as
-          transport sheets or receipts.
-        </p>
+        <Label>{label}</Label>
+        <p className="text-xs text-muted-foreground">{description}</p>
       </div>
 
       <div

@@ -11,22 +11,24 @@ import {
   ShieldCheck,
 } from "lucide-react"
 
+import { CommodityThumbnail } from "@/components/commodity-thumbnail"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import {
-  isAssetVisibleToParty,
+  isPrivatePartyView,
   originFingerprint,
   tokenId,
   transferMatchesAsset,
 } from "@/lib/provenance"
+import { partyViewById, partyViewLabel } from "@/lib/demo/party-views"
 import { useTraceabilityStore } from "@/lib/store"
 import {
   CERTIFICATION_META,
   COMMODITY_META,
   RATING_META,
   STAGE_META,
-  assetImage,
+  type OriginEvidenceReference,
   type Transfer,
 } from "@/lib/types"
 import { cn, formatTons } from "@/lib/utils"
@@ -56,6 +58,7 @@ function transfersVisibleToParty(
   partyId: string,
   assetAccountId: string
 ): Transfer[] {
+  // Current custodian sees the full batch custody chain (demo product decision).
   if (assetAccountId === partyId) return transfers
 
   return transfers.filter(
@@ -68,18 +71,22 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
   const assets = useTraceabilityStore((state) => state.assets)
   const transfers = useTraceabilityStore((state) => state.transfers)
   const accounts = useTraceabilityStore((state) => state.accounts)
-  const selectedAccountId = useTraceabilityStore(
-    (state) => state.selectedAccountId
+  const selectedPartyViewId = useTraceabilityStore(
+    (state) => state.selectedPartyViewId
+  )
+  const isAssetVisibleToSelectedParty = useTraceabilityStore(
+    (state) => state.isAssetVisibleToSelectedParty
   )
 
   const asset = useMemo(
     () => assets.find((item) => item.id === assetId),
     [assets, assetId]
   )
-  const selectedAccount = useMemo(
-    () => accounts.find((account) => account.id === selectedAccountId),
-    [accounts, selectedAccountId]
+  const selectedPartyView = useMemo(
+    () => partyViewById(selectedPartyViewId),
+    [selectedPartyViewId]
   )
+  const visibilityPartyId = selectedPartyView?.operationalNodeId ?? selectedPartyViewId
   const relatedTransfers = useMemo(() => {
     if (!asset) return []
 
@@ -92,8 +99,8 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
   }, [asset, transfers])
   const isVisible = useMemo(() => {
     if (!asset) return false
-    return isAssetVisibleToParty(asset, selectedAccountId, transfers)
-  }, [asset, selectedAccountId, transfers])
+    return isAssetVisibleToSelectedParty(assetId)
+  }, [asset, assetId, isAssetVisibleToSelectedParty])
 
   const accountById = useMemo(
     () => (id: string) => accounts.find((account) => account.id === id),
@@ -119,16 +126,27 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
   }
 
   if (!isVisible) {
+    const partyName = selectedPartyView
+      ? partyViewLabel(selectedPartyView)
+      : "This company"
+
     return (
       <div className="mx-auto flex min-h-svh w-full max-w-3xl flex-col items-center justify-center gap-4 px-6 py-12 text-center">
         <EyeOff className="size-12 text-muted-foreground/60" />
         <div>
           <h1 className="text-xl font-semibold">Not visible to this party</h1>
           <p className="mt-2 max-w-md text-sm text-muted-foreground">
-            {selectedAccount?.name ?? "This party"} is not authorized to view
-            this lot position. Canton privacy limits visibility to involved
-            custodians and transfer counterparties only.
+            No private contracts are visible to {partyName}. Canton visibility
+            is limited to involved custodians and transfer counterparties —
+            unrelated parties cannot inspect lot positions, custody transfers, or
+            evidence on this route.
           </p>
+          {isPrivatePartyView(selectedPartyViewId) ? (
+            <p className="mt-3 max-w-md text-sm text-muted-foreground">
+              This blocked view is expected selective visibility behavior, not a
+              missing-data error or broken demo.
+            </p>
+          ) : null}
         </div>
         <Button asChild variant="outline">
           <Link href="/">Back to dashboard</Link>
@@ -145,7 +163,7 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
     : null
   const partyTransfers = transfersVisibleToParty(
     relatedTransfers,
-    selectedAccountId,
+    visibilityPartyId,
     asset.accountId
   )
   const evidence = partyTransfers.flatMap((transfer) =>
@@ -154,6 +172,7 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
       transferId: transfer.id,
     }))
   )
+  const originEvidence = asset.originEvidence ?? []
   const fingerprint = originFingerprint(asset)
 
   return (
@@ -168,24 +187,22 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
       </div>
 
       <div className="mb-6 rounded-lg border border-border/60 bg-muted/40 px-4 py-3 text-sm">
-        <p className="font-medium">Party view: {selectedAccount?.name}</p>
+        <p className="font-medium">
+          Party view: {selectedPartyView ? partyViewLabel(selectedPartyView) : visibilityPartyId}
+        </p>
         <p className="mt-1 text-muted-foreground">
-          {asset.accountId === selectedAccountId
+          {asset.accountId === visibilityPartyId
             ? "You can see this lot because it is held at your operational node."
             : "You can see this lot because your party participated in a related custody transfer."}
         </p>
       </div>
 
       <header className="mb-8 flex gap-4">
-        <div className="size-16 shrink-0 overflow-hidden rounded-xl border border-border/60 bg-muted">
-          <img
-            src={assetImage(asset)}
-            alt={commodity.label}
-            width={64}
-            height={64}
-            className="size-full object-cover"
-          />
-        </div>
+        <CommodityThumbnail
+          commodity={asset.commodity}
+          certifications={asset.certifications}
+          size={64}
+        />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-muted-foreground">
             {tokenId(asset.id)}
@@ -249,6 +266,17 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
               <Separator className="my-2" />
             </>
           ) : null}
+          {asset.originIdentifier ? (
+            <>
+              <div className="flex items-center justify-between gap-3 py-1.5">
+                <span className="text-muted-foreground">Origin identifier</span>
+                <span className="max-w-[55%] truncate font-mono text-xs">
+                  {asset.originIdentifier}
+                </span>
+              </div>
+              <Separator className="my-2" />
+            </>
+          ) : null}
           <div className="flex items-center justify-between gap-3 py-1.5">
             <span className="text-muted-foreground">Origin fingerprint</span>
             <span className="font-mono text-xs">{fingerprint}</span>
@@ -262,18 +290,19 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
         </h2>
         {partyTransfers.length === 0 ? (
           <div className="rounded-lg border border-dashed bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground">
-            No custody transfers visible to {selectedAccount?.name} for this lot
-            yet.
+            No custody transfers visible to{" "}
+            {selectedPartyView ? partyViewLabel(selectedPartyView) : "this party"}{" "}
+            for this lot yet.
           </div>
         ) : (
           <div className="overflow-hidden rounded-lg border bg-background">
             {partyTransfers.map((transfer) => {
               const direction =
-                transfer.toAccountId === selectedAccountId
+                transfer.toAccountId === visibilityPartyId
                   ? "received"
-                  : transfer.fromAccountId === selectedAccountId
+                  : transfer.fromAccountId === visibilityPartyId
                     ? "sent"
-                    : asset.accountId === selectedAccountId
+                    : asset.accountId === visibilityPartyId
                       ? transfer.toAccountId === asset.accountId
                         ? "received"
                         : "sent"
@@ -317,9 +346,37 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
         )}
       </section>
 
+      {originEvidence.length > 0 ? (
+        <section className="mb-8 space-y-3">
+          <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
+            Origin evidence references
+          </h2>
+          <div className="overflow-hidden rounded-lg border bg-background">
+            {originEvidence.map((item: OriginEvidenceReference) => (
+              <div
+                key={item.id}
+                className="border-b border-border p-4 last:border-b-0"
+              >
+                <p className="font-medium">{item.name}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {item.documentType ?? item.mimeType}
+                  {item.issuer ? ` · ${item.issuer}` : ""}
+                  {item.timestamp
+                    ? ` · ${formatTransferDate(item.timestamp)}`
+                    : ""}
+                </p>
+                <p className="mt-2 break-all font-mono text-xs text-muted-foreground select-all">
+                  {item.hash}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <section className="mb-8 space-y-3">
         <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
-          Evidence references
+          Transfer evidence references
         </h2>
         {evidence.length === 0 ? (
           <div className="rounded-lg border border-dashed bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground">
@@ -368,7 +425,11 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
               {partyTransfers.length === 1 ? "" : "s"} for your party
             </li>
             <li>
-              {evidence.length} evidence reference
+              {originEvidence.length} origin evidence reference
+              {originEvidence.length === 1 ? "" : "s"} with ledger-bound hashes
+            </li>
+            <li>
+              {evidence.length} transfer evidence reference
               {evidence.length === 1 ? "" : "s"} with ledger-bound hashes
             </li>
           </ul>
