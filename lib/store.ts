@@ -9,6 +9,13 @@ import {
 } from "@/lib/data"
 import type { Account, Asset, Transfer } from "@/lib/types"
 
+type NewTransferInput = {
+  fromAccountId: string
+  toAccountId: string
+  assetId: string
+  quantity: number
+}
+
 type TraceabilityState = {
   accounts: Account[]
   assets: Asset[]
@@ -16,6 +23,7 @@ type TraceabilityState = {
   selectedAccountId: string
   selectAccount: (id: string) => void
   resetData: () => void
+  addTransfer: (input: NewTransferInput) => void
   assetsByAccount: (accountId: string) => Asset[]
   transfersSentByAccount: (accountId: string) => Transfer[]
   transfersReceivedByAccount: (accountId: string) => Transfer[]
@@ -42,6 +50,62 @@ export const useTraceabilityStore = create<TraceabilityState>()(
       ...initialState,
       selectAccount: (id) => set({ selectedAccountId: id }),
       resetData: () => set(initialState),
+      addTransfer: ({ fromAccountId, toAccountId, assetId, quantity }) => {
+        const state = get()
+        const sourceAsset = state.assets.find((a) => a.id === assetId)
+        if (!sourceAsset || sourceAsset.accountId !== fromAccountId) return
+        if (sourceAsset.quantity < quantity) return
+
+        const updatedAssets = state.assets
+          .map((a) => {
+            if (a.id === assetId) {
+              return { ...a, quantity: a.quantity - quantity }
+            }
+            return a
+          })
+          .filter((a) => a.quantity > 0)
+
+        const existingDest = updatedAssets.find(
+          (a) =>
+            a.accountId === toAccountId &&
+            a.commodity === sourceAsset.commodity &&
+            JSON.stringify([...a.certifications].sort()) ===
+              JSON.stringify([...sourceAsset.certifications].sort()) &&
+            a.rating === sourceAsset.rating
+        )
+
+        let finalAssets: Asset[]
+        if (existingDest) {
+          finalAssets = updatedAssets.map((a) =>
+            a.id === existingDest.id ? { ...a, quantity: a.quantity + quantity } : a
+          )
+        } else {
+          const newAsset: Asset = {
+            id: `a${Date.now()}`,
+            accountId: toAccountId,
+            commodity: sourceAsset.commodity,
+            certifications: sourceAsset.certifications,
+            rating: sourceAsset.rating,
+            quantity,
+            unit: "tons",
+          }
+          finalAssets = [...updatedAssets, newAsset]
+        }
+
+        const newTransfer: Transfer = {
+          id: `t${Date.now()}`,
+          fromAccountId,
+          toAccountId,
+          commodity: sourceAsset.commodity,
+          certifications: sourceAsset.certifications,
+          rating: sourceAsset.rating,
+          quantity,
+          unit: "tons",
+          occurredAt: new Date().toISOString(),
+        }
+
+        set({ assets: finalAssets, transfers: [...state.transfers, newTransfer] })
+      },
       assetsByAccount: (accountId) =>
         get().assets.filter((asset) => asset.accountId === accountId),
       transfersSentByAccount: (accountId) =>
