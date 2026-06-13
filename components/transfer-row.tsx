@@ -6,6 +6,7 @@ import {
   CERTIFICATION_META,
   COMMODITY_META,
   RATING_META,
+  assetImage,
   type Transfer,
 } from "@/lib/types"
 import { cn, formatTons } from "@/lib/utils"
@@ -38,14 +39,32 @@ export function TransferRow({
       role="listitem"
       className="flex w-full items-center gap-3 border-b border-border p-4 last:border-b-0"
     >
-      <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-muted">
-        <DirectionIcon className="size-5 text-muted-foreground" />
+      <div className="relative size-12 shrink-0">
+        <div className="flex size-full items-center justify-center overflow-hidden rounded-xl border border-border/60 bg-muted">
+          <DirectionIcon className="size-5 text-muted-foreground/60" />
+        </div>
+        <span
+          className="absolute -right-0.5 -bottom-0.5 overflow-hidden rounded-md border border-border bg-background"
+          aria-hidden
+        >
+          <img
+            src={assetImage(transfer)}
+            alt={commodity.label}
+            width={20}
+            height={20}
+            className="size-5 object-cover"
+          />
+        </span>
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-center justify-between gap-3">
           <p className="m-0 min-w-0 line-clamp-1 text-base leading-snug font-medium">
-            {commodity.label}
+            {commodity.label}{" "}
+            <span className="font-normal text-muted-foreground">
+              {direction === "sent" ? "to" : "from"}
+            </span>{" "}
+            {counterpartyName}
           </p>
           <p className="m-0 shrink-0 text-base leading-snug font-medium whitespace-nowrap">
             <span className="tabular-nums">{formatTons(transfer.quantity)}</span>
@@ -65,15 +84,15 @@ export function TransferRow({
             >
               {rating.label}
             </Badge>
-            <span className="text-foreground">
-              {direction === "sent" ? "To" : "From"} {counterpartyName}
-            </span>
             {transfer.certifications.length > 0 ? (
-              <span>
-                {transfer.certifications
-                  .map((cert) => CERTIFICATION_META[cert].label)
-                  .join(" · ")}
-              </span>
+              <>
+                <span className="text-foreground">Certifications</span>
+                <span>
+                  {transfer.certifications
+                    .map((cert) => CERTIFICATION_META[cert].label)
+                    .join(" · ")}
+                </span>
+              </>
             ) : (
               <span>Standard batch</span>
             )}
