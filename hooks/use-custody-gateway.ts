@@ -236,11 +236,48 @@ export function useCustodyGateway() {
     [applyCustodySnapshot, getSnapshot, isCanton, selectedPartyViewId],
   )
 
+  const combineLots = useCallback(
+    async (input: { accountId: string; lotIds: string[] }) => {
+      setIsSubmitting(true)
+      setError(null)
+
+      const request = {
+        partyViewId: selectedPartyViewId,
+        ...input,
+        ...(isCanton ? {} : { snapshot: getSnapshot() }),
+      }
+
+      const { data, error: gatewayError } =
+        await postCustody<CreateLotMutationResult>(
+          "/api/ledger/combine-lots",
+          request,
+        )
+
+      setIsSubmitting(false)
+
+      if (gatewayError) {
+        setError(gatewayError.message)
+        return { ok: false as const, error: gatewayError.message }
+      }
+
+      if (data) {
+        applyCustodySnapshot({ assets: data.assets, transfers: data.transfers })
+        return { ok: true as const, asset: data.asset }
+      }
+
+      const fallback = "Lot positions could not be combined."
+      setError(fallback)
+      return { ok: false as const, error: fallback }
+    },
+    [applyCustodySnapshot, getSnapshot, isCanton, selectedPartyViewId],
+  )
+
   return {
     initiateTransfer,
     acceptTransfer,
     rejectTransfer,
     createLot,
+    combineLots,
     isSubmitting,
     error,
     clearError: () => setError(null),

@@ -42,6 +42,12 @@ export type Asset = {
   unit: "tons"
   originIdentifier?: string
   originEvidence?: OriginEvidenceReference[]
+  /**
+   * Derived provenance: ids of the source lot position(s) this lot was split
+   * from or combined out of. Lets attestation distinguish derived holdings from
+   * original origin lots without rewriting prior custody state.
+   */
+  sourceLotIds?: string[]
 }
 
 export type TransferAttachment = {

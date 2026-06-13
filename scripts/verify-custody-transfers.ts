@@ -5,6 +5,7 @@ import {
   rejectTransfer,
   reservedQuantityForAsset,
 } from "@/lib/demo/custody-service"
+import { isLedgerError } from "@/lib/ledger/errors"
 import { SEED_ASSETS, SEED_TRANSFERS } from "@/lib/data"
 import { withSeedTransferAssetIds } from "@/lib/seed-transfer-assets"
 
@@ -57,8 +58,14 @@ function main() {
     )
     console.error("Double-spend attempt should have failed.")
     process.exit(1)
-  } catch {
-    console.log("Double-spend blocked as expected.")
+  } catch (error) {
+    if (isLedgerError(error)) {
+      console.log(
+        `Double-spend blocked as expected [${error.code}]: ${error.message}`
+      )
+    } else {
+      console.log("Double-spend blocked as expected.")
+    }
   }
 
   const accepted = acceptTransfer(

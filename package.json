@@ -18,7 +18,9 @@
     "ledger:verify-demo-flow": "tsx --env-file-if-exists=.env.local scripts/verify-demo-flow.ts",
     "ledger:verify-create-lot": "tsx --env-file-if-exists=.env.local scripts/verify-create-lot.ts",
     "verify:party-visibility": "tsx scripts/verify-party-visibility.ts",
-    "verify:custody-transfers": "tsx scripts/verify-custody-transfers.ts"
+    "verify:custody-transfers": "tsx scripts/verify-custody-transfers.ts",
+    "verify:combine": "tsx scripts/verify-combine.ts",
+    "verify:multi-leg": "tsx scripts/verify-multi-leg-route.ts"
   },
   "dependencies": {
     "@tanstack/react-table": "^8.21.3",

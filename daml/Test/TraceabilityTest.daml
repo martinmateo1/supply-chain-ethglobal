@@ -229,3 +229,173 @@ testRejectReleasesQuantity = script do
     None -> abort "Returned lot not found after reject"
 
   pure ()
+
+-- Combine: two compatible lots merge into one position; quantity is the exact
+-- sum and both sources are consumed.
+testCombineCompatible : Script ()
+testCombineCompatible = script do
+  operator <- allocateParty "StorageOperator"
+
+  lotA <- submit operator do
+    createCmd LotPosition with
+      owner = operator
+      lotId = "lot-combine-a"
+      commodity = Coffee
+      quantity = Quantity 1000.0 "tons"
+      certifications = [NonGMO, DeforestationFree]
+      quality = GradeA
+      originIdentifier = Some "origin-a"
+
+  lotB <- submit operator do
+    createCmd LotPosition with
+      owner = operator
+      lotId = "lot-combine-b"
+      commodity = Coffee
+      quantity = Quantity 2500.0 "tons"
+      -- Reversed order proves set comparison is order-independent.
+      certifications = [DeforestationFree, NonGMO]
+      quality = GradeA
+      originIdentifier = Some "origin-b"
+
+  combinedCid <- submit operator do
+    exerciseCmd lotA CombineLots with
+      otherLotCid = lotB
+      combinedLotId = "lot-combine-ab"
+
+  combinedOpt <- queryContractId operator combinedCid
+  case combinedOpt of
+    Some combined -> do
+      assertMsg "Combined quantity must equal sum" (combined.quantity.amount == 3500.0)
+      assertMsg "Combined commodity wrong" (combined.commodity == Coffee)
+      assertMsg "Combined certs wrong" (sameCertSet combined.certifications [NonGMO, DeforestationFree])
+    None -> abort "Combined lot not found"
+
+  -- Both sources are consumed (anti-double-spend).
+  aOpt <- queryContractId operator lotA
+  bOpt <- queryContractId operator lotB
+  assertMsg "Source A should be archived" (aOpt == None)
+  assertMsg "Source B should be archived" (bOpt == None)
+
+  pure ()
+
+-- Combine guard: different commodities cannot combine.
+testCombineIncompatibleCommodity : Script ()
+testCombineIncompatibleCommodity = script do
+  operator <- allocateParty "StorageOperator"
+
+  lotA <- submit operator do
+    createCmd LotPosition with
+      owner = operator
+      lotId = "lot-bad-a"
+      commodity = Coffee
+      quantity = Quantity 1000.0 "tons"
+      certifications = [NonGMO]
+      quality = GradeA
+      originIdentifier = None
+
+  lotB <- submit operator do
+    createCmd LotPosition with
+      owner = operator
+      lotId = "lot-bad-b"
+      commodity = Cacao
+      quantity = Quantity 1000.0 "tons"
+      certifications = [NonGMO]
+      quality = GradeA
+      originIdentifier = None
+
+  submitMustFail operator do
+    exerciseCmd lotA CombineLots with
+      otherLotCid = lotB
+      combinedLotId = "lot-bad-ab"
+
+  pure ()
+
+-- Combine guard: mismatched certification sets cannot combine.
+testCombineIncompatibleCerts : Script ()
+testCombineIncompatibleCerts = script do
+  operator <- allocateParty "StorageOperator"
+
+  lotA <- submit operator do
+    createCmd LotPosition with
+      owner = operator
+      lotId = "lot-cert-a"
+      commodity = Coffee
+      quantity = Quantity 1000.0 "tons"
+      certifications = [NonGMO, DeforestationFree]
+      quality = GradeA
+      originIdentifier = None
+
+  lotB <- submit operator do
+    createCmd LotPosition with
+      owner = operator
+      lotId = "lot-cert-b"
+      commodity = Coffee
+      quantity = Quantity 1000.0 "tons"
+      certifications = [NonGMO]
+      quality = GradeA
+      originIdentifier = None
+
+  submitMustFail operator do
+    exerciseCmd lotA CombineLots with
+      otherLotCid = lotB
+      combinedLotId = "lot-cert-ab"
+
+  pure ()
+
+-- Multi-leg: a full custody chain across distinct owners
+-- (silo → rail → origin-port → ship → destination-port) must preserve
+-- commodity, certifications, provenance, and quantity at every hop.
+testMultiLegRoute : Script ()
+testMultiLegRoute = script do
+  silo <- allocateParty "Silo"
+  rail <- allocateParty "Rail"
+  originPort <- allocateParty "OriginPort"
+  ship <- allocateParty "Ship"
+  destPort <- allocateParty "DestinationPort"
+
+  -- One leg: full transfer (no remainder), accept, assert preservation.
+  let
+    leg : Party -> ContractId LotPosition -> Party -> Text -> Script (ContractId LotPosition)
+    leg sender lotCid receiver transferId = do
+      (transferCid, remainder) <- submit sender do
+        exerciseCmd lotCid InitiateTransfer with
+          receiver
+          transferId
+          transferAmount = 9000.0
+          evidenceHashes = []
+
+      assertMsg "Full transfer should leave no remainder" (remainder == None)
+
+      receiverLotCid <- submit receiver do
+        exerciseCmd transferCid AcceptTransfer
+
+      receiverLotOpt <- queryContractId receiver receiverLotCid
+      case receiverLotOpt of
+        Some receiverLot -> do
+          assertMsg "Quantity not conserved across leg" (receiverLot.quantity.amount == 9000.0)
+          assertMsg "Commodity not preserved across leg" (receiverLot.commodity == Coffee)
+          assertMsg "Certifications not preserved across leg"
+            (receiverLot.certifications == [NonGMO, DeforestationFree])
+          assertMsg "Provenance not preserved across leg"
+            (receiverLot.originIdentifier == Some "origin-huila-001")
+        None -> abort "Receiver lot not found after accept"
+
+      pure receiverLotCid
+
+  -- Origin custody held by the silo operator.
+  lot0 <- submit silo do
+    createCmd LotPosition with
+      owner = silo
+      lotId = "lot-route-0"
+      commodity = Coffee
+      quantity = Quantity 9000.0 "tons"
+      certifications = [NonGMO, DeforestationFree]
+      quality = GradeA
+      originIdentifier = Some "origin-huila-001"
+
+  railLot <- leg silo lot0 rail "t-route-rail"
+  portLot <- leg rail railLot originPort "t-route-origin-port"
+  shipLot <- leg originPort portLot ship "t-route-ship"
+  _ <- leg ship shipLot destPort "t-route-destination-port"
+
+  pure ()

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { useCustodyGateway } from "@/hooks/use-custody-gateway"
+import { suggestNextCustodyStep } from "@/lib/demo/custody-route"
 import { useTraceabilityStore } from "@/lib/store"
 import {
   COMMODITY_META,
@@ -69,7 +70,16 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
     ? availableQuantityForAsset(selectedAssetId)
     : 0
   const isQuantityValid = quantity > 0 && quantity <= maxQuantity
-  const toAccounts = accounts.filter((a) => a.id !== fromAccountId)
+  // Route-aware ordering: the configured next custody hop is surfaced first and
+  // labeled, but any destination remains selectable (suggestion, not a lock).
+  const suggestedNextId = suggestNextCustodyStep(fromAccountId)
+  const toAccounts = accounts
+    .filter((a) => a.id !== fromAccountId)
+    .sort((a, b) => {
+      if (a.id === suggestedNextId) return -1
+      if (b.id === suggestedNextId) return 1
+      return 0
+    })
   const canConfirm =
     !!fromAccountId &&
     !!toAccountId &&
@@ -82,6 +92,9 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
         `${assetKey(selectedAsset.commodity, selectedAsset.certifications)}:${selectedAsset.rating}`
       )
     : null
+
+  const isSplit = !!selectedAsset && quantity > 0 && quantity < maxQuantity
+  const remainingAfterSplit = isSplit ? maxQuantity - quantity : 0
 
   async function handleConfirm() {
     if (!canConfirm) return
@@ -248,6 +261,7 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
               {toAccounts.map((account) => (
                 <SelectItem key={account.id} value={account.id}>
                   {account.name} — {formatTons(accountTotalTons(account.id))}t
+                  {account.id === suggestedNextId ? " · Next custody step" : ""}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -261,12 +275,53 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
         />
 
         <div className="rounded-lg bg-muted px-4 py-3 text-sm">
-          <p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            Transfer Summary
-          </p>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              {isSplit ? "Split Summary" : "Transfer Summary"}
+            </p>
+            {isSplit ? (
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-primary uppercase">
+                Split
+              </span>
+            ) : null}
+          </div>
+
+          {isSplit && selectedAsset ? (
+            <>
+              <div className="flex items-center justify-between gap-3 py-1.5">
+                <span className="text-muted-foreground">Before (source)</span>
+                <span className="font-medium tabular-nums">
+                  {formatTons(maxQuantity)}t
+                </span>
+              </div>
+              <Separator className="my-1" />
+              <div className="flex items-center justify-between gap-3 py-1.5">
+                <span className="text-muted-foreground">Transfer</span>
+                <span className="font-medium tabular-nums">
+                  {formatTons(quantity)}t
+                </span>
+              </div>
+              <Separator className="my-1" />
+              <div className="flex items-center justify-between gap-3 py-1.5">
+                <span className="text-muted-foreground">Remaining (source)</span>
+                <span className="font-medium tabular-nums">
+                  {formatTons(remainingAfterSplit)}t
+                </span>
+              </div>
+              <Separator className="my-1" />
+              <p className="py-1.5 text-xs leading-relaxed text-muted-foreground">
+                Quantity is conserved: {formatTons(quantity)}t transferred +{" "}
+                {formatTons(remainingAfterSplit)}t remaining ={" "}
+                {formatTons(maxQuantity)}t source.
+              </p>
+              <Separator className="my-1" />
+            </>
+          ) : null}
 
           <div className="flex items-center justify-between gap-3 py-1.5">
-            <span className="text-muted-foreground">Batch ID</span>
+            <span className="text-muted-foreground">
+              {isSplit ? "Source reference" : "Batch ID"}
+            </span>
             <span className="font-mono text-xs font-medium">
               {selectedAsset ? tokenId(selectedAsset.id) : "—"}
             </span>
