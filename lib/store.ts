@@ -3,13 +3,14 @@ import { createJSONStorage, persist } from "zustand/middleware"
 
 import {
   DEFAULT_SELECTED_ACCOUNT_ID,
+  DEFAULT_SELECTED_COMPANY_ID,
   SEED_ACCOUNTS,
   SEED_ASSETS,
+  SEED_COMPANIES,
   SEED_TRANSFERS,
 } from "@/lib/data"
 import { isAssetVisibleToParty, transferMatchesAsset } from "@/lib/provenance"
-import { withSeedTransferAssetIds } from "@/lib/seed-transfer-assets"
-import type { Account, Asset, Transfer, TransferAttachment } from "@/lib/types"
+import type { Account, Asset, Company, Transfer, TransferAttachment } from "@/lib/types"
 
 type NewTransferInput = {
   fromAccountId: string
@@ -20,28 +21,36 @@ type NewTransferInput = {
 }
 
 type TraceabilityState = {
+  companies: Company[]
   accounts: Account[]
   assets: Asset[]
   transfers: Transfer[]
   selectedAccountId: string
+  selectedCompanyId: string
   selectAccount: (id: string) => void
+  selectCompany: (id: string) => void
   resetData: () => void
   addTransfer: (input: NewTransferInput) => void
   assetById: (id: string) => Asset | undefined
   accountById: (id: string) => Account | undefined
+  companyById: (id: string) => Company | undefined
+  accountsByCompany: (companyId: string) => Account[]
   relatedTransfersForAsset: (assetId: string) => Transfer[]
   isAssetVisibleToSelectedParty: (assetId: string) => boolean
   assetsByAccount: (accountId: string) => Asset[]
   transfersSentByAccount: (accountId: string) => Transfer[]
   transfersReceivedByAccount: (accountId: string) => Transfer[]
   accountTotalTons: (accountId: string) => number
+  companyTotalTons: (companyId: string) => number
 }
 
 const initialState = {
+  companies: SEED_COMPANIES,
   accounts: SEED_ACCOUNTS,
   assets: SEED_ASSETS,
   transfers: SEED_TRANSFERS,
   selectedAccountId: DEFAULT_SELECTED_ACCOUNT_ID,
+  selectedCompanyId: DEFAULT_SELECTED_COMPANY_ID,
 }
 
 type PersistedTraceabilityState = {
@@ -52,7 +61,7 @@ type PersistedTraceabilityState = {
 }
 
 function normalizeTransfers(transfers: Transfer[] | undefined): Transfer[] {
-  return withSeedTransferAssetIds(transfers ?? SEED_TRANSFERS)
+  return transfers ?? SEED_TRANSFERS
 }
 
 export const useTraceabilityStore = create<TraceabilityState>()(
@@ -60,6 +69,14 @@ export const useTraceabilityStore = create<TraceabilityState>()(
     (set, get) => ({
       ...initialState,
       selectAccount: (id) => set({ selectedAccountId: id }),
+      selectCompany: (id) => {
+        const state = get()
+        const firstAccount = state.accounts.find((a) => a.companyId === id)
+        set({
+          selectedCompanyId: id,
+          selectedAccountId: firstAccount?.id ?? state.selectedAccountId,
+        })
+      },
       resetData: () => set(initialState),
       addTransfer: ({
         fromAccountId,
@@ -92,12 +109,23 @@ export const useTraceabilityStore = create<TraceabilityState>()(
         )
 
         let finalAssets: Asset[]
+        let destAsset: Asset
         if (existingDest) {
+          // Merge into existing holding — accumulate sources without duplicates
+          const mergedSources = Array.from(
+            new Set([...(existingDest.sourceAssetIds ?? []), assetId])
+          )
+          destAsset = {
+            ...existingDest,
+            quantity: existingDest.quantity + quantity,
+            sourceAssetIds: mergedSources,
+          }
           finalAssets = updatedAssets.map((a) =>
-            a.id === existingDest.id ? { ...a, quantity: a.quantity + quantity } : a
+            a.id === existingDest.id ? destAsset : a
           )
         } else {
-          const newAsset: Asset = {
+          // New holding — single source
+          destAsset = {
             id: `a${Date.now()}`,
             accountId: toAccountId,
             commodity: sourceAsset.commodity,
@@ -105,15 +133,17 @@ export const useTraceabilityStore = create<TraceabilityState>()(
             rating: sourceAsset.rating,
             quantity,
             unit: "tons",
+            sourceAssetIds: [assetId],
           }
-          finalAssets = [...updatedAssets, newAsset]
+          finalAssets = [...updatedAssets, destAsset]
         }
 
         const newTransfer: Transfer = {
           id: `t${Date.now()}`,
           fromAccountId,
           toAccountId,
-          assetId,
+          fromAssetId: assetId,
+          toAssetId: destAsset.id,
           commodity: sourceAsset.commodity,
           certifications: sourceAsset.certifications,
           rating: sourceAsset.rating,
@@ -127,6 +157,10 @@ export const useTraceabilityStore = create<TraceabilityState>()(
       },
       assetById: (id) => get().assets.find((asset) => asset.id === id),
       accountById: (id) => get().accounts.find((account) => account.id === id),
+      companyById: (id) =>
+        get().companies.find((company) => company.id === id),
+      accountsByCompany: (companyId) =>
+        get().accounts.filter((account) => account.companyId === companyId),
       relatedTransfersForAsset: (assetId) => {
         const asset = get().assets.find((item) => item.id === assetId)
         if (!asset) return []
@@ -171,13 +205,50 @@ export const useTraceabilityStore = create<TraceabilityState>()(
         get()
           .assets.filter((asset) => asset.accountId === accountId)
           .reduce((total, asset) => total + asset.quantity, 0),
+      companyTotalTons: (companyId) => {
+        const state = get()
+        const accountIds = new Set(
+          state.accounts
+            .filter((a) => a.companyId === companyId)
+            .map((a) => a.id)
+        )
+        return state.assets
+          .filter((asset) => accountIds.has(asset.accountId))
+          .reduce((total, asset) => total + asset.quantity, 0)
+      },
     }),
     {
       name: "hackathon-traceability",
-      version: 8,
+      version: 12,
       storage: createJSONStorage(() => localStorage),
       migrate: (persistedState, version) => {
         const state = persistedState as PersistedTraceabilityState
+
+        if (version < 12) {
+          return {
+            selectedAccountId: DEFAULT_SELECTED_ACCOUNT_ID,
+            selectedCompanyId: DEFAULT_SELECTED_COMPANY_ID,
+            assets: SEED_ASSETS,
+            transfers: SEED_TRANSFERS,
+          }
+        }
+
+        if (version < 10) {
+          return {
+            selectedAccountId: DEFAULT_SELECTED_ACCOUNT_ID,
+            selectedCompanyId: DEFAULT_SELECTED_COMPANY_ID,
+            assets: SEED_ASSETS,
+            transfers: SEED_TRANSFERS,
+          }
+        }
+
+        if (version < 9) {
+          return {
+            selectedAccountId: DEFAULT_SELECTED_ACCOUNT_ID,
+            assets: SEED_ASSETS,
+            transfers: SEED_TRANSFERS,
+          }
+        }
 
         if (version < 8) {
           return {

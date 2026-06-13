@@ -23,8 +23,24 @@ export type StageType =
   | "ship"
   | "destination-port"
 
+/**
+ * One company per stage. Each company owns multiple wallets (Accounts).
+ * The Canton privacy model maps each company to a distinct ledger party.
+ */
+export type Company = {
+  id: string
+  name: string
+  stageType: StageType
+  location?: string
+}
+
+/**
+ * A wallet / operational account owned by exactly one Company.
+ * Each account independently holds Assets and participates in transfers.
+ */
 export type Account = {
   id: string
+  companyId: string
   name: string
   stageType: StageType
   order: number
@@ -32,6 +48,12 @@ export type Account = {
   operator?: string
 }
 
+/**
+ * A custody position held inside one Account.
+ * sourceAssetIds tracks the immediate upstream assets that were consumed or
+ * partially consumed to create this asset, enabling full provenance graph
+ * traversal and double-spend detection.
+ */
 export type Asset = {
   id: string
   accountId: string
@@ -40,6 +62,7 @@ export type Asset = {
   rating: Rating
   quantity: number
   unit: "tons"
+  sourceAssetIds?: string[]
 }
 
 export type TransferAttachment = {
@@ -54,7 +77,8 @@ export type Transfer = {
   id: string
   fromAccountId: string
   toAccountId: string
-  assetId?: string
+  fromAssetId: string
+  toAssetId: string
   commodity: CommodityType
   certifications: Certification[]
   rating: Rating
