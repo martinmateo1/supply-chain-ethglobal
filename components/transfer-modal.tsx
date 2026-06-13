@@ -22,13 +22,13 @@ import {
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { useTraceabilityStore } from "@/lib/store"
-import { COMMODITY_META, type Asset } from "@/lib/types"
+import { COMMODITY_META, STAGE_META, type Asset } from "@/lib/types"
 import { formatTons } from "@/lib/utils"
 
 type TransferModalProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  defaultFromAccountId?: string
+  fromAccountId: string
 }
 
 function assetLabel(asset: Asset): string {
@@ -42,16 +42,14 @@ function assetLabel(asset: Asset): string {
 export function TransferModal({
   open,
   onOpenChange,
-  defaultFromAccountId,
+  fromAccountId,
 }: TransferModalProps) {
   const accounts = useTraceabilityStore((state) => state.accounts)
   const assetsByAccount = useTraceabilityStore((state) => state.assetsByAccount)
   const accountTotalTons = useTraceabilityStore((state) => state.accountTotalTons)
   const addTransfer = useTraceabilityStore((state) => state.addTransfer)
 
-  const [fromAccountId, setFromAccountId] = useState(
-    defaultFromAccountId ?? accounts[0]?.id ?? ""
-  )
+  const fromAccount = accounts.find((account) => account.id === fromAccountId)
   const [toAccountId, setToAccountId] = useState("")
   const [selectedAssetId, setSelectedAssetId] = useState("")
   const [quantityStr, setQuantityStr] = useState("")
@@ -75,13 +73,6 @@ export function TransferModal({
     day: "numeric",
   })
 
-  function handleFromAccountChange(id: string) {
-    setFromAccountId(id)
-    setSelectedAssetId("")
-    setQuantityStr("")
-    if (toAccountId === id) setToAccountId("")
-  }
-
   function handleConfirm() {
     if (!toAccountId || !selectedAssetId || !isQuantityValid) return
     addTransfer({
@@ -96,7 +87,6 @@ export function TransferModal({
   function handleOpenChange(value: boolean) {
     if (!value) {
       // reset state on close
-      setFromAccountId(defaultFromAccountId ?? accounts[0]?.id ?? "")
       setToAccountId("")
       setSelectedAssetId("")
       setQuantityStr("")
@@ -141,28 +131,25 @@ export function TransferModal({
             </DialogHeader>
 
             <div className="space-y-4">
-              {/* From account */}
-              <div className="space-y-1.5">
-                <Label htmlFor="from-account">From Account</Label>
-                <Select
-                  value={fromAccountId}
-                  onValueChange={handleFromAccountChange}
-                >
-                  <SelectTrigger
-                    id="from-account"
-                    className="w-full"
-                  >
-                    <SelectValue placeholder="Select account" />
-                  </SelectTrigger>
-                  <SelectContent position="popper">
-                    {accounts.map((account) => (
-                      <SelectItem key={account.id} value={account.id}>
-                        {account.name} — {formatTons(accountTotalTons(account.id))}t
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {fromAccount ? (
+                <div className="space-y-1.5">
+                  <Label>From Account</Label>
+                  <div className="flex h-9 w-full items-center gap-2 rounded-md border border-input bg-muted/40 px-3 text-sm">
+                    {(() => {
+                      const FromIcon = STAGE_META[fromAccount.stageType].icon
+                      return (
+                        <>
+                          <FromIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                          <span className="font-medium">{fromAccount.name}</span>
+                          <span className="ml-auto text-muted-foreground">
+                            {formatTons(accountTotalTons(fromAccount.id))}t
+                          </span>
+                        </>
+                      )
+                    })()}
+                  </div>
+                </div>
+              ) : null}
 
               {/* Asset */}
               <div className="space-y-1.5">
