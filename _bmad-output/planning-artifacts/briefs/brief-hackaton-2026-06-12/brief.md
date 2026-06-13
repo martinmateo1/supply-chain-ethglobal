@@ -2,14 +2,14 @@
 title: "Private Commodity Traceability on Canton"
 status: "draft"
 created: "2026-06-12"
-updated: "2026-06-12"
+updated: "2026-06-13"
 ---
 
 # Product Brief: Private Commodity Traceability on Canton
 
 ## Executive Summary
 
-Private Commodity Traceability on Canton is a hackathon MVP for tracking the physical custody of certified commodities across a private multi-company supply chain. The app should support a commodity selector so the same custody model can be used for different products. For the demo, coffee beans and cacao are seeded examples that move from original lot creation, through truck transport, into silo storage, onto railway transport, through an origin port, onto a ship, and finally into a destination port. Each operational node acts like a wallet or Canton party that holds quantities and records inbound and outbound movements.
+Private Commodity Traceability on Canton is a hackathon MVP for tracking the physical custody of certified commodities across a private multi-company supply chain. The app should support a commodity selector so the same custody model can be used for different products. For the demo, coffee beans and cacao are seeded examples that move from original lot creation, through truck transport, into silo storage, onto railway transport, through a port terminal, onto a vessel managed by a logistics company, and into another port terminal account. Each account represents a company or facility party that can hold quantities, manage operational assets, and record inbound and outbound movements.
 
 The product is built around a real supply-chain tension: every participant needs traceability, but no company wants to expose its inventory, storage locations, suppliers, customers, or transfer history to competitors. Canton is the core technology because the product needs party-level privacy, not a public shared ledger where everyone can inspect the whole graph.
 
@@ -25,15 +25,15 @@ The obvious blockchain answer, a public ledger of every transfer and balance, do
 
 ## The Solution
 
-The app models each operational node as a private ledger participant and keeps commodity type as configurable product metadata:
+The app models each company account and its custody-holding operational assets as private ledger participants, while keeping commodity type as configurable product metadata:
 
 - Production sites create original commodity lots with selected product type, quantity, origin, and certifications.
-- Truck transport wallets receive custody of quantities from the origin lot and deliver them to silo storage with attached transport-sheet evidence.
-- Silo storage wallets receive, hold, combine, split, and send quantities while preserving provenance links.
-- Railway transport wallets move outbound quantities from silo storage to the origin port.
-- Origin port wallets receive export-ready quantities and transfer custody onto a ship.
-- Ship wallets carry custody during the ocean leg and deliver quantities to the destination port.
-- Destination port wallets receive the final inbound quantity and can issue or verify a custody-chain attestation.
+- Truck logistics accounts receive custody of quantities from the origin lot and deliver them to silo storage with attached transport-sheet evidence.
+- Silo storage accounts receive, hold, combine, split, and send quantities while preserving provenance links.
+- Railway logistics accounts move outbound quantities from silo storage to a port terminal account.
+- Port terminal accounts receive export-ready quantities and transfer custody onto a vessel managed by a logistics company.
+- Vessel logistics accounts carry custody during the ocean leg and transfer quantities to another port terminal account.
+- Port terminal accounts can receive inbound quantities and issue or verify a custody-chain attestation when they are the current holder.
 - Each split, merge, and transfer consumes or archives prior custody positions and creates new ones, so the same certified quantity cannot be reused to prove multiple downstream commodities.
 
 The user experience is a web dashboard where a user acts as a selected company party and sees only the data that party is entitled to see. The demo should switch between a producer, logistics company, storage operator, and port operator to show that the same supply-chain flow exists on the ledger, but each party's view is limited.
@@ -51,9 +51,9 @@ The strongest Canton demo is a party-perspective walkthrough:
 - The producer sees created lots, outbound truck transfers, and its own origin/certification data.
 - The logistics company sees assigned truck and railway transport legs and document evidence for its movements, but not unrelated storage balances.
 - The storage operator sees inbound deliveries, stored quantities, and outbound railway handoffs from its own silo.
-- The origin port operator sees inbound rail arrivals and loading onto the ship.
-- The ship operator sees the ocean transport leg without seeing unrelated upstream inventory.
-- The destination port operator sees ship arrivals and can request, verify, or generate a traceability attestation for the received quantity.
+- A port terminal operator sees inbound rail arrivals and loading onto a vessel when involved in that transfer.
+- A vessel logistics operator sees the ocean transport leg for its vessel assets without seeing unrelated upstream inventory.
+- A port terminal operator that receives cargo from a vessel sees only the arrivals and held assets for its account, and can request, verify, or generate a traceability attestation for the received quantity.
 - A non-involved company sees none of the private contracts.
 - A custody transfer archives the previous custody position and creates the new one atomically, with document hashes or proof references bound to that transfer.
 
@@ -64,12 +64,12 @@ The strongest Canton demo is a party-perspective walkthrough:
 The demo journey:
 
 1. Farms or production sites choose a commodity type and create certified lots with origin coordinates, establishment metadata, quality grade, and certification metadata. The demo uses coffee beans and cacao as examples.
-2. The lot is split into truck loads, each with a transport sheet, quantity, origin, destination silo, and document hash.
+2. The lot is split into truck loads, each with a transport sheet, quantity, pickup site, receiving silo, and document hash.
 3. The silo storage operator receives the trucks and stores the quantities, optionally combining compatible lots from approved origins.
-4. The silo sends an outbound quantity by railway transport to an origin port wallet.
-5. The origin port receives the rail shipment and transfers custody onto a ship.
-6. The ship carries the certified quantity across the ocean leg and transfers custody to the destination port.
-7. The destination port receives the shipment and generates or verifies a custody-chain attestation proving the chain of custody, quantities, involved parties, certifications, and supporting document hashes.
+4. The silo sends an outbound quantity by railway transport to a port terminal account.
+5. The port terminal receives the rail shipment and transfers custody onto a vessel asset managed by a logistics company.
+6. The logistics company carries the certified quantity across the ocean leg using that vessel asset and transfers custody to another port terminal account.
+7. The receiving port terminal account receives the shipment and generates or verifies a custody-chain attestation proving the chain of custody, quantities, involved parties, certifications, and supporting document hashes.
 
 ## Attestation
 
@@ -78,7 +78,7 @@ The MVP attestation proves the full custody chain for a selected quantity. It sh
 - Product and quantity.
 - Origin site metadata, including coordinates or establishment identifier.
 - Certification claims attached at origin and preserved through movements.
-- Custody path from lot creation through truck transport, silo storage, railway transport, origin port, ship, and destination port.
+- Custody path from lot creation through truck transport, silo storage, railway transport, port terminal handling, vessel logistics, and receiving port terminal handling.
 - Split and merge references sufficient to explain how the final quantity relates to prior lots.
 - Source asset references showing that certified quantities were consumed once and not reused across multiple attestations.
 - Document hashes and metadata for transportation sheets, receipts, and invoices attached to transfers.
@@ -96,7 +96,7 @@ Primary users:
 - Logistics operators that need to record transport custody without exposing routes or customer volume broadly.
 - Storage operators that need to manage inbound, combined, split, and outbound inventory.
 - Railway, port, and ship operators that need to record custody movements without exposing unrelated commercial activity.
-- Exporters, importers, or destination port operators that need export- or import-ready provenance evidence.
+- Exporters, importers, or port terminal operators that need export- or import-ready provenance evidence.
 
 Secondary users:
 
@@ -106,7 +106,7 @@ Secondary users:
 
 In scope for the hackathon MVP:
 
-- Canton/Daml contracts for lot creation, custody transfer, split, merge/combine, silo storage, truck transport, railway transport, port receipt, ship custody, destination-port receipt, and attestation issuance.
+- Canton/Daml contracts for lot creation, custody transfer, split, merge/combine, silo storage, truck transport, railway transport, port receipt, vessel custody, port-terminal receipt, and attestation issuance.
 - React dashboard adapted from the existing mockup.
 - Commodity selector with coffee beans and cacao as demo seed data, while keeping the data model generic.
 - Party switcher for demoing privacy by company perspective.
@@ -130,7 +130,7 @@ The hackathon submission is successful if it can show:
 
 - A working Canton DevNet deployment with meaningful Daml contracts.
 - A UI that records and displays the custody movement of a commodity lot.
-- Split and merge behavior across truck transport, silo storage, railway transport, port, ship, and destination port.
+- Split and merge behavior across truck transport, silo storage, railway transport, port terminal handling, vessel logistics, and port-terminal receipt.
 - Prevention or clear demonstration of attempted double spending of the same certified quantity.
 - Attached document proof metadata on transfers.
 - A generated custody-chain attestation.
