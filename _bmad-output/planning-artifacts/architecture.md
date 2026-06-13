@@ -9,6 +9,7 @@ workflowType: "architecture"
 lastStep: 8
 status: "complete"
 completedAt: "2026-06-12"
+updatedAt: "2026-06-13"
 project_name: "hackaton"
 user_name: "Diego"
 date: "2026-06-12"
@@ -27,9 +28,10 @@ The PRD defines 16 functional requirements across five capability groups:
 
 - Commodity lot origination: a producer selects a Commodity, creates an origin Lot Position, and preserves certification metadata through later movements.
 - Custody transfer with evidence: Operational Nodes initiate and accept Custody Transfers, attach Evidence References, and show visible transfer history in Party Views.
-- Split, combine, and storage operations: parties split Lot Positions for transport, combine compatible Lot Positions in storage, and create outbound quantities while conserving quantity and provenance.
-- Party Views and Selective Visibility: the UI switches between producer, logistics, storage, port, and non-involved Party Views to demonstrate Canton privacy.
-- Custody-chain Attestation: an authorized party generates and presents an Attestation for a selected quantity, including product, quantity, custody path, provenance, certifications, and Evidence References.
+- Split, combine, and storage operations: parties split Lot Positions for truck transport, combine compatible Lot Positions in silo storage, and create outbound quantities while conserving quantity and provenance.
+- Multi-leg custody path: truck transport, silo storage, railway transport, origin port, ship custody, and destination port receipt all act as custody-holding steps in the same ledger model.
+- Party Views and Selective Visibility: the UI switches between producer, logistics, storage, origin port, ship, destination port, and non-involved Party Views to demonstrate Canton privacy.
+- Custody-chain Attestation: an authorized party generates and presents an Attestation for a selected quantity, including product, quantity, custody path, provenance, certifications, source asset references, and Evidence References.
 
 **Non-Functional Requirements:**
 The architecture is shaped primarily by privacy, data integrity, and demo clarity:
@@ -37,6 +39,7 @@ The architecture is shaped primarily by privacy, data integrity, and demo clarit
 - Non-involved parties must not see private Lot Positions, Custody Transfers, Evidence References, or balances.
 - Observer/signatory modeling must stay narrow to avoid over-disclosure.
 - Quantity changes must conserve quantity across split, combine, transfer, and storage operations.
+- Certified quantities must be consumed or archived across state transitions so the same certified source quantity cannot substantiate multiple downstream commodities.
 - Evidence References must remain bound to the Custody Transfers used in Attestations.
 - The UI must make active Party View, selected Commodity, holdings, and transfer status obvious during a short judge demo.
 - The project must include a README that explains setup, privacy model, architecture overview, limitations, and demo script.
@@ -62,6 +65,7 @@ The architecture is shaped primarily by privacy, data integrity, and demo clarit
 - Selective Visibility: every data structure and query path must respect what the active Party View can see.
 - Authorization: custody actions must map to real-world authority without adding broad signatories or observers.
 - Quantity Conservation: split, combine, transfer, and storage operations must preserve totals.
+- Certified Quantity Single-Use: source Lot Positions and certification-bearing quantities must not remain spendable after transfer, split, merge, or attestation use.
 - Provenance Continuity: derived Lot Positions must retain enough Provenance Links for Attestation generation.
 - Evidence Binding: Evidence References must stay tied to the relevant Custody Transfers without requiring full document verification.
 - Demo Clarity: judges must be able to understand the same flow from multiple Party Views quickly.
@@ -198,10 +202,10 @@ Preserve fast frontend iteration while keeping Canton/Daml workflows isolated en
 
 **Critical Decisions (Block Implementation):**
 
-- Daml/Canton is the source of truth for custody, provenance, quantity conservation, and Attestation-relevant state.
+- Daml/Canton is the source of truth for custody, provenance, quantity conservation, certified-quantity single-use, and Attestation-relevant state.
 - Supabase is optional and limited to off-ledger Evidence Reference metadata, file references, or convenience state.
 - Each wallet-like Operational Node is modeled as a Canton party; Companies group many Operational Nodes in app metadata.
-- Transport vehicles or transport loads are Operational Nodes that temporarily hold custody.
+- Transport vehicles/loads, silo storage, origin port, ship custody, and destination port are Operational Nodes that temporarily or finally hold custody.
 - A thin Next.js server/API layer mediates ledger commands and queries; the browser does not talk directly to Canton.
 - MVP auth uses a demo Party View switcher; Privy is deferred unless time remains.
 - Target demo environment is Next.js on Vercel/local, Canton DevNet or LocalNet for ledger, and optional Supabase for evidence references.
@@ -228,7 +232,7 @@ Preserve fast frontend iteration while keeping Canton/Daml workflows isolated en
 
 **Version Context:** Canton/Daml should target the active DevNet-compatible SDK version; current public Canton release context found Canton `3.5.3` and Daml SDK management through `dpm`.
 
-**Rationale:** Custody, provenance, split/combine operations, and selective visibility are the product's core value. Keeping those in Daml makes Canton privacy and authorization central rather than decorative.
+**Rationale:** Custody, provenance, split/combine operations, certified-quantity single-use, and selective visibility are the product's core value. Keeping those in Daml makes Canton privacy and authorization central rather than decorative.
 
 **Affects:** Lot Position, Custody Transfer, Provenance Link, Attestation, Party View queries.
 
@@ -242,15 +246,15 @@ Preserve fast frontend iteration while keeping Canton/Daml workflows isolated en
 
 **Decision:** Each wallet-like Operational Node is a Canton party.
 
-**Rationale:** A Company can own many wallets/nodes: farms, trucks or transport loads, storage sites, and port storages. Modeling the node as the custody-holding party matches the product language and makes party-level visibility demonstrable.
+**Rationale:** A Company can own many wallets/nodes: farms, trucks or transport loads, silo storage, railway transport, origin ports, ships, and destination ports. Modeling the node as the custody-holding party matches the product language and makes party-level visibility demonstrable.
 
 **Affects:** Daml signatories/controllers/observers, Party View switcher, Company grouping metadata, seed data.
 
-**Decision:** Transport vehicles or transport loads are Operational Nodes.
+**Decision:** Every custody-holding leg is an Operational Node.
 
-**Rationale:** This makes custody explicit while goods are in transit and matches the desired truck-level traceability flow.
+**Rationale:** This makes custody explicit while goods move through truck transport, silo storage, railway transport, origin port, ship custody, and destination port receipt. It also keeps the model consistent: the holder of a quantity is always a wallet-like Canton party.
 
-**Affects:** Custody Transfer workflow, split operation, inbound/outbound transfer history, demo party set.
+**Affects:** Custody Transfer workflow, split operation, inbound/outbound transfer history, demo party set, Party View switcher, attestation custody path.
 
 ### Authentication & Security
 
@@ -280,7 +284,7 @@ Preserve fast frontend iteration while keeping Canton/Daml workflows isolated en
 
 **Decision:** Keep API shape action-oriented for MVP.
 
-**Rationale:** The demo needs commands such as create lot, split lot, initiate transfer, accept transfer, combine lots, create outbound transfer, and generate attestation. A broad generic CRUD API would obscure ledger workflows.
+**Rationale:** The demo needs commands such as create lot, split lot, initiate transfer, accept transfer, combine lots, create outbound transfer, load ship, receive shipment, generate attestation, and verify attempted double-spend failure. A broad generic CRUD API would obscure ledger workflows.
 
 **Affects:** Frontend hooks/actions, test scripts, README demo script.
 
@@ -318,8 +322,8 @@ Preserve fast frontend iteration while keeping Canton/Daml workflows isolated en
 
 1. Bring in the existing Next.js mockup and document local setup.
 2. Add Daml/Canton project skeleton and compile/test workflow.
-3. Define Daml templates for Operational Node, Lot Position, Custody Transfer, Evidence Reference, split/combine, and Attestation.
-4. Add seed parties and demo data for Companies, node wallets, coffee beans, and cacao.
+3. Define Daml templates for Operational Node, Lot Position, Custody Transfer, Evidence Reference, source asset references, split/combine, and Attestation.
+4. Add seed parties and demo data for Companies, node wallets, coffee beans, cacao, truck transport, silo storage, railway transport, origin port, ship, and destination port.
 5. Build the Next.js ledger gateway for core actions.
 6. Replace mock frontend data with gateway-backed data by Party View.
 7. Add Attestation generation and verifier view.
@@ -329,7 +333,7 @@ Preserve fast frontend iteration while keeping Canton/Daml workflows isolated en
 **Cross-Component Dependencies:**
 
 - Party View UI depends on Daml party modeling and seed party IDs.
-- Attestation generation depends on Provenance Links from split/combine/transfer workflows.
+- Attestation generation depends on Provenance Links and source asset references from split/combine/transfer workflows.
 - Evidence display depends on Evidence References being bound to Custody Transfers.
 - Supabase integration, if used, depends on the Evidence Reference schema but not on custody state.
 - Privy, if added later, maps users to Party Views but does not replace Daml authorization.
@@ -340,7 +344,7 @@ Preserve fast frontend iteration while keeping Canton/Daml workflows isolated en
 
 **Critical Conflict Points Identified:**
 
-- Daml template and choice naming could drift from PRD glossary terms.
+- Daml template and choice naming could drift from PRD/brief terminology, especially around source asset references and multi-leg custody nodes.
 - Canton parties, Companies, and Operational Nodes could be modeled inconsistently across contracts, seed data, and UI.
 - API routes could become generic CRUD endpoints instead of ledger workflow actions.
 - Supabase evidence metadata could accidentally become a second source of custody truth.
@@ -351,10 +355,10 @@ Preserve fast frontend iteration while keeping Canton/Daml workflows isolated en
 
 **Daml Naming Conventions:**
 
-- Use PascalCase for Daml templates and data types: `LotPosition`, `CustodyTransfer`, `EvidenceReference`, `TraceabilityAttestation`.
-- Use verb phrases for Daml choices: `InitiateTransfer`, `AcceptTransfer`, `SplitLot`, `CombineLots`, `GenerateAttestation`.
-- Use PRD Glossary terms exactly in Daml-facing code: `Commodity`, `Company`, `OperationalNode`, `PartyView`, `ProvenanceLink`.
-- Avoid synonyms like `Asset`, `Batch`, `Account`, or `Shipment` in new domain code unless explicitly mapped to a Glossary term.
+- Use PascalCase for Daml templates and data types: `LotPosition`, `CustodyTransfer`, `EvidenceReference`, `SourceAssetReference`, `TraceabilityAttestation`.
+- Use verb phrases for Daml choices: `InitiateTransfer`, `AcceptTransfer`, `SplitLot`, `CombineLots`, `LoadShip`, `ReceiveShipment`, `GenerateAttestation`.
+- Use PRD Glossary terms exactly in Daml-facing code: `Commodity`, `Company`, `OperationalNode`, `PartyView`, `ProvenanceLink`, `SourceAssetReference`.
+- Avoid synonyms like `Asset`, `Batch`, `Account`, or `Shipment` in new domain code unless explicitly mapped to a Glossary term. If `Shipment` is needed for UI copy, map it to a Custody Transfer or ship-leg Lot Position in domain code.
 
 **Database/Supabase Naming Conventions:**
 
@@ -432,7 +436,7 @@ type ApiResponse<T> = ApiSuccess<T> | ApiFailure;
 
 **Error Handling Patterns:**
 
-- Gateway errors use stable error codes such as `LEDGER_COMMAND_FAILED`, `UNAUTHORIZED_PARTY_VIEW`, `INSUFFICIENT_QUANTITY`, `EVIDENCE_REFERENCE_INVALID`, and `ATTESTATION_NOT_AVAILABLE`.
+- Gateway errors use stable error codes such as `LEDGER_COMMAND_FAILED`, `UNAUTHORIZED_PARTY_VIEW`, `INSUFFICIENT_QUANTITY`, `SOURCE_ASSET_ALREADY_CONSUMED`, `EVIDENCE_REFERENCE_INVALID`, and `ATTESTATION_NOT_AVAILABLE`.
 - User-facing messages explain what the operator can do next.
 - Internal details may be logged server-side but should not leak private party data to unrelated Party Views.
 
@@ -452,6 +456,7 @@ type ApiResponse<T> = ApiSuccess<T> | ApiFailure;
 - Route ledger operations through the Next.js gateway.
 - Preserve Selective Visibility in every UI, API, and data decision.
 - Include quantity conservation and provenance continuity checks in contract tests or scripts.
+- Include a negative test or scripted demo showing that an already-consumed certified source quantity cannot be reused for another downstream claim.
 
 **Pattern Enforcement:**
 
@@ -466,6 +471,8 @@ type ApiResponse<T> = ApiSuccess<T> | ApiFailure;
 
 - `LotPosition` for a custody-holding ledger position.
 - `POST /api/ledger/initiate-transfer` for starting a Custody Transfer.
+- `POST /api/ledger/load-ship` for transferring origin-port custody onto a ship Operational Node.
+- `SourceAssetReference` showing which prior certified quantity supports an Attestation.
 - `EvidenceReference` storing `documentHash` and `contentId`, not raw document contents.
 - `usePartyView()` storing active demo Party View only.
 
@@ -476,6 +483,7 @@ type ApiResponse<T> = ApiSuccess<T> | ApiFailure;
 - Letting the browser submit raw Canton commands directly.
 - Adding all Companies as observers to make the demo easier.
 - Combining lots without preserving Provenance Links.
+- Generating two Attestations from the same consumed source quantity without an explicit remaining balance.
 
 ## Project Structure & Boundaries
 
@@ -506,9 +514,12 @@ supply-chain-ethglobal/
 │       │   ├── accept-transfer/route.ts
 │       │   ├── combine-lots/route.ts
 │       │   ├── create-outbound-transfer/route.ts
+│       │   ├── load-ship/route.ts
+│       │   ├── receive-shipment/route.ts
 │       │   ├── visible-holdings/route.ts
 │       │   ├── transfer-history/route.ts
-│       │   └── generate-attestation/route.ts
+│       │   ├── generate-attestation/route.ts
+│       │   └── verify-double-spend/route.ts
 │       └── evidence/
 │           ├── create-reference/route.ts
 │           └── get-reference/route.ts
@@ -523,6 +534,7 @@ supply-chain-ethglobal/
 │   ├── transfer-row.tsx
 │   ├── attestation-panel.tsx
 │   ├── attestation-row.tsx
+│   ├── custody-path-timeline.tsx
 │   ├── evidence-reference-list.tsx
 │   └── ui/
 ├── hooks/
@@ -540,11 +552,13 @@ supply-chain-ethglobal/
 │   │   ├── quantities.ts
 │   │   ├── commodities.ts
 │   │   ├── party-view.ts
+│   │   ├── source-assets.ts
 │   │   └── attestations.ts
 │   ├── demo/
 │   │   ├── companies.ts
 │   │   ├── operational-nodes.ts
 │   │   ├── commodities.ts
+│   │   ├── custody-path.ts
 │   │   └── party-views.ts
 │   ├── ledger/
 │   │   ├── client.ts
@@ -567,12 +581,14 @@ supply-chain-ethglobal/
 │   ├── Commodity/LotPosition.daml
 │   ├── Commodity/CustodyTransfer.daml
 │   ├── Commodity/EvidenceReference.daml
+│   ├── Commodity/SourceAssetReference.daml
 │   ├── Commodity/TraceabilityAttestation.daml
 │   ├── Scripts/SetupDemo.daml
 │   └── Test/TraceabilityTest.daml
 ├── scripts/
 │   ├── generate-daml-types.ts
 │   ├── seed-demo-ledger.ts
+│   ├── attempt-double-spend.ts
 │   └── verify-demo-flow.ts
 ├── tests/
 │   ├── ledger/
@@ -630,12 +646,13 @@ supply-chain-ethglobal/
 - UI: `history-panel.tsx`, `transfer-row.tsx`, `evidence-reference-list.tsx`
 - Ledger integration: `lib/ledger/commands.ts`, `lib/ledger/queries.ts`
 
-**Split, Combine, And Storage (FR-8 to FR-10):**
+**Split, Combine, Storage, And Multi-Leg Custody (FR-8 to FR-10 plus updated brief path):**
 
 - Daml: `Commodity/LotPosition.daml`, `Commodity/CustodyTransfer.daml`
-- API: `split-lot`, `combine-lots`, `create-outbound-transfer`
-- Domain: `lib/domain/quantities.ts`
+- API: `split-lot`, `combine-lots`, `create-outbound-transfer`, `load-ship`, `receive-shipment`
+- Domain: `lib/domain/quantities.ts`, `lib/demo/custody-path.ts`
 - Tests: `daml/Test/TraceabilityTest.daml`, `tests/ledger/`
+- Custody path nodes: truck transport, silo storage, railway transport, origin port, ship, destination port
 
 **Party Views And Selective Visibility (FR-11 to FR-13):**
 
@@ -643,13 +660,15 @@ supply-chain-ethglobal/
 - Hooks: `use-party-view.ts`, `use-visible-holdings.ts`, `use-transfer-history.ts`
 - API: `visible-holdings`, `transfer-history`
 - Demo data: `lib/demo/companies.ts`, `lib/demo/operational-nodes.ts`, `lib/demo/party-views.ts`
+- Required views: producer, truck logistics, railway logistics, silo storage, origin port, ship operator, destination port, non-involved company
 
 **Custody-Chain Attestation (FR-14 to FR-16):**
 
-- Daml: `Commodity/TraceabilityAttestation.daml`
-- API: `generate-attestation`
-- UI: `attestation-panel.tsx`, `attestation-row.tsx`, `evidence-reference-list.tsx`
-- Domain: `lib/domain/attestations.ts`
+- Daml: `Commodity/TraceabilityAttestation.daml`, `Commodity/SourceAssetReference.daml`
+- API: `generate-attestation`, `verify-double-spend`
+- UI: `attestation-panel.tsx`, `attestation-row.tsx`, `custody-path-timeline.tsx`, `evidence-reference-list.tsx`
+- Domain: `lib/domain/attestations.ts`, `lib/domain/source-assets.ts`
+- Test/script: `scripts/attempt-double-spend.ts` and Daml tests must show consumed certified quantities cannot be reused.
 
 ### Integration Points
 
@@ -669,10 +688,12 @@ supply-chain-ethglobal/
 
 1. Producer creates a Lot Position through UI and ledger gateway.
 2. Daml creates custody state visible only to authorized parties.
-3. Transport/storage actions mutate custody state through Daml choices.
-4. Evidence References are bound to Custody Transfers, optionally with Supabase metadata.
-5. Party View queries return only visible holdings/transfers.
-6. Attestation generation reads visible provenance and emits selective proof data.
+3. Truck, silo, railway, origin port, ship, and destination port actions mutate custody state through Daml choices.
+4. Each split, combine, transfer, ship load, and shipment receipt archives or consumes the prior spendable custody position and creates the next one.
+5. Evidence References are bound to Custody Transfers, optionally with Supabase metadata.
+6. Party View queries return only visible holdings/transfers.
+7. Attestation generation reads visible provenance and source asset references, then emits selective proof data.
+8. A negative double-spend demo attempts to reuse a consumed source quantity and fails.
 
 ### File Organization Patterns
 
@@ -737,22 +758,23 @@ The project structure supports the architecture. `app/api/ledger/*` owns ledger-
 ### Requirements Coverage Validation ✅
 
 **Feature Coverage:**
-All five PRD feature groups have mapped architectural support:
+All five PRD feature groups and the updated product-brief custody path have mapped architectural support:
 
 - Commodity Lot Origination → Daml lot templates, `create-lot` route, commodity selector, holdings UI.
 - Custody Transfer With Evidence → custody/evidence Daml templates, transfer routes, transfer history UI, evidence components.
-- Split, Combine, And Storage → Lot Position/Custody Transfer templates, quantity domain helpers, split/combine/outbound routes.
-- Party Views And Selective Visibility → Party switcher, visible holdings/history routes, demo party data, Daml party model.
-- Custody-Chain Attestation → attestation Daml template, generation route, attestation panel, evidence binding display.
+- Split, Combine, Storage, And Multi-Leg Custody → Lot Position/Custody Transfer templates, quantity domain helpers, split/combine/outbound/load-ship/receive-shipment routes.
+- Party Views And Selective Visibility → Party switcher, visible holdings/history routes, demo party data, Daml party model for producer, truck logistics, railway logistics, silo, origin port, ship, destination port, and non-involved company.
+- Custody-Chain Attestation And Anti-Double-Spend → attestation/source asset Daml templates, generation route, double-spend verification route, attestation panel, custody path timeline, and evidence binding display.
 
 **Functional Requirements Coverage:**
-FR-1 through FR-16 are architecturally supported by the Daml contract area, Next.js gateway routes, domain helpers, UI components, hooks, and tests/scripts mapped in the project structure.
+FR-1 through FR-16 are architecturally supported by the Daml contract area, Next.js gateway routes, domain helpers, UI components, hooks, and tests/scripts mapped in the project structure. The updated brief adds explicit truck → silo → rail → origin port → ship → destination port custody and certified-quantity anti-double-spend behavior; these are now covered by the multi-leg custody routes, source asset references, and negative double-spend script/test guidance.
 
 **Non-Functional Requirements Coverage:**
 The core NFRs are supported:
 
 - Privacy/selective visibility is addressed through Daml parties, narrow authorization, and Party View-aware queries.
 - Quantity conservation is addressed through Daml contract choices and contract tests/scripts.
+- Certified-quantity single-use is addressed through archived/consumed source positions, Source Asset References, and negative double-spend tests/scripts.
 - Evidence binding is addressed through Evidence References tied to Custody Transfers.
 - Demo clarity is addressed through dedicated Party Switcher, Commodity Selector, holdings, history, and Attestation panels.
 - README/demo readiness is addressed as a required first implementation and handoff artifact.
@@ -777,13 +799,13 @@ None found.
 
 - Exact Canton DevNet/Seaport SDK and deployment settings must be verified during implementation against the current deployment guide. The architecture records current public Canton release context but intentionally does not hard-code DevNet compatibility.
 - The architecture assumes the existing Next.js mockup repository is available as the frontend base. If it is unavailable or diverges heavily, the fallback `create-next-app` path should be used.
-- The PRD remains marked `draft`; if requirements change, this architecture should be updated before epics/stories are generated.
+- The PRD remains marked `draft` and still uses the shorter custody path in some sections. Reconcile the PRD with the updated brief and architecture before epics/stories are generated.
 
 **Nice-to-Have Gaps:**
 
 - Add a diagram in README showing UI → Next.js gateway → Canton/Daml → optional Supabase.
 - Add a small glossary mapping from prior mockup terms (`Account`, `Asset`, `Transfer`) to PRD terms (`Operational Node`, `Lot Position`, `Custody Transfer`) before implementation.
-- Add a demo seed table for Company → Operational Node → Canton party IDs.
+- Add a demo seed table for Company → Operational Node → Canton party IDs, covering truck, silo, rail, origin port, ship, and destination port nodes.
 
 ### Validation Issues Addressed
 
@@ -830,6 +852,7 @@ No critical issues required redesign. The only material concern, DevNet SDK/depl
 - Canton privacy is central rather than decorative.
 - Custody source of truth is clearly separated from optional Supabase metadata.
 - Party/wallet modeling matches the product language.
+- Certified-quantity anti-double-spend behavior is captured as a ledger invariant, not a UI convention.
 - Existing frontend work is preserved.
 - Agent-facing consistency rules are concrete enough to prevent naming and boundary drift.
 
@@ -852,4 +875,4 @@ No critical issues required redesign. The only material concern, DevNet SDK/depl
 - Treat privacy leaks across Party Views as blockers.
 
 **First Implementation Priority:**
-Bring in the existing Next.js mockup, add the Daml/Canton skeleton, document local commands, and create the first Daml contract/test path for `LotPosition` and `CustodyTransfer`.
+Bring in the existing Next.js mockup, add the Daml/Canton skeleton, document local commands, and create the first Daml contract/test path for `LotPosition`, `CustodyTransfer`, `SourceAssetReference`, and a negative double-spend attempt.
