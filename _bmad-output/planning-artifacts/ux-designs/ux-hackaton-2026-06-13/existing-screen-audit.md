@@ -47,4 +47,4 @@ Important supporting components:
 3. Add origin lot creation as a production-site-only panel or modal, reusing the existing transfer-panel pattern.
 4. Make split/combine explicit in copy and UI: label partial transfer as a split, label compatible destination aggregation as a combine, and show quantity conservation.
 5. Promote attestation preview into a generate-and-verify panel for destination-port assets, including custody path, evidence cards, issuer/recipient, and verification status.
-6. If time allows, add pending inbound transfer acceptance; if not, document it as a post-MVP behavior and avoid implying FR-5 is complete.
+6. Add pending inbound transfer acceptance for FR-5, or explicitly descope FR-5 before implementation; do not imply FR-5 is complete with immediate confirmation only.

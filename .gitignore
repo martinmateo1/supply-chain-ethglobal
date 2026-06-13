@@ -21,6 +21,7 @@
 # misc
 .DS_Store
 .cursor/
+.cursor/rules/github-main-repo-account.mdc
 *.pem
 
 # debug

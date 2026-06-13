@@ -129,7 +129,7 @@ The current screens are retained. UX work should fill gaps in this order:
 3. Production-site create-lot panel.
 4. Explicit split/combine/provenance explanation for partial transfer and compatible destination aggregation.
 5. Destination-port attestation generation plus in-app verifier panel.
-6. Pending inbound transfer accept/reject flow if time remains.
+6. Pending inbound transfer accept/reject flow required for FR-5, unless the PRD is explicitly descoped before implementation.
 
 ## Inspiration & Anti-patterns
 
