@@ -149,6 +149,9 @@ export function TraceabilityView() {
           <AppNavbar
             selectedPartyViewId={selectedPartyViewId}
             onSelectPartyView={handleSelectPartyView}
+            isCantonBackend={isCantonBackend}
+            isSyncing={isSyncing}
+            syncError={syncError}
           />
           <div className="mx-auto w-full max-w-4xl px-6 pt-16 pb-28">
             <header className="mb-12 flex flex-wrap items-start justify-between gap-4">
@@ -205,15 +208,6 @@ export function TraceabilityView() {
                 ) : null}
               </div>
             </header>
-
-            {isCantonBackend ? (
-              <p className="text-muted-foreground mb-4 text-sm">
-                {isSyncing
-                  ? "Refreshing holdings from Canton…"
-                  : "Holdings and pending transfers are read from the Canton ledger."}
-                {syncError ? ` ${syncError}` : null}
-              </p>
-            ) : null}
 
             <Tabs
               value={contentView}
