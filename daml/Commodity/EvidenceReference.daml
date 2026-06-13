@@ -1,0 +1,13 @@
+module Commodity.EvidenceReference where
+
+-- EvidenceReference binds off-ledger document hashes to a CustodyTransfer.
+-- Supabase metadata, if enabled later, must not become custody source of truth.
+
+template EvidenceReference
+  with
+    custodian : Party
+    transferId : Text
+    documentHash : Text
+    contentId : Optional Text
+  where
+    signatory custodian

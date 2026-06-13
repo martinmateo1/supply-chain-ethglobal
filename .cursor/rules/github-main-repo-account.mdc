@@ -1,0 +1,23 @@
+---
+description: Keep GitHub operations on the main repo using diegograsso
+alwaysApply: true
+---
+
+# GitHub Repository And Account
+
+For this project, always use the main repository and the `diegograsso` GitHub account.
+
+- The only intended remote is `origin` pointing to `https://github.com/martinmateo1/supply-chain-ethglobal.git`.
+- Do not use or recreate a `fork` remote for `agrodiego/supply-chain-ethglobal` unless the user explicitly asks.
+- Before pushing, creating PRs, or using `gh`, verify the active GitHub user with `gh api user --jq '.login'`; it must return `diegograsso`.
+- If plain Git operations need credentials, prefer this repo-local helper over global config changes:
+
+```sh
+git config --local credential.https://github.com.helper "!gh auth git-credential"
+```
+
+- If the remote drifts, restore it with:
+
+```sh
+git remote set-url origin https://github.com/martinmateo1/supply-chain-ethglobal.git
+```

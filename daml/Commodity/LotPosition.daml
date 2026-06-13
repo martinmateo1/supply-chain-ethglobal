@@ -1,0 +1,16 @@
+module Commodity.LotPosition where
+
+import Commodity.Types
+
+-- LotPosition is the authoritative custody-holding ledger position.
+-- Split, combine, and quantity conservation choices are added in Epic 3.
+
+template LotPosition
+  with
+    owner : Party
+    commodity : CommodityKind
+    quantity : Quantity
+    certifications : [Certification]
+    quality : QualityGrade
+  where
+    signatory owner

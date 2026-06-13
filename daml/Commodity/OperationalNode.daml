@@ -1,0 +1,13 @@
+module Commodity.OperationalNode where
+
+import Commodity.Types
+
+-- OperationalNode models a custody-holding node operated by a Company.
+-- Party allocation and Canton authorization wiring arrive in later stories.
+
+data OperationalNodeRef = OperationalNodeRef
+  { nodeId : OperationalNodeId
+  , companyId : CompanyId
+  , label : Text
+  }
+  deriving (Eq, Show)

@@ -1,0 +1,12 @@
+module Commodity.TraceabilityAttestation where
+
+-- TraceabilityAttestation emits selective custody-chain proof for verifiers.
+-- Generation and privacy rules are implemented in Epic 4.
+
+template TraceabilityAttestation
+  with
+    issuer : Party
+    attestationPayloadHash : Text
+    coveredLotIds : [Text]
+  where
+    signatory issuer
