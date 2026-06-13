@@ -1,4 +1,4 @@
-import { ArrowDownLeft, ArrowUpRight } from "lucide-react"
+import { ArrowDownLeft, ArrowUpRight, Paperclip } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -96,6 +96,16 @@ export function TransferRow({
             ) : (
               <span>Standard batch</span>
             )}
+            {transfer.attachments && transfer.attachments.length > 0 ? (
+              <>
+                <span aria-hidden>·</span>
+                <span className="inline-flex items-center gap-1">
+                  <Paperclip className="size-3" />
+                  {transfer.attachments.length} doc
+                  {transfer.attachments.length === 1 ? "" : "s"}
+                </span>
+              </>
+            ) : null}
           </p>
           <Button
             type="button"

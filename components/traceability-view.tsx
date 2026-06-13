@@ -1,7 +1,7 @@
 "use client"
 
-import { ArrowLeftRight, ChevronRight } from "lucide-react"
-import { Fragment, useState } from "react"
+import { ArrowLeftRight } from "lucide-react"
+import { useState } from "react"
 
 import { AssetsPanel } from "@/components/assets-panel"
 import { HistoryPanel } from "@/components/history-panel"
@@ -17,8 +17,8 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useTraceabilityStore } from "@/lib/store"
-import { formatTons } from "@/lib/utils"
-import { cn } from "@/lib/utils"
+import { STAGE_META } from "@/lib/types"
+import { cn, formatTons } from "@/lib/utils"
 
 export function TraceabilityView() {
   const accounts = useTraceabilityStore((state) => state.accounts)
@@ -47,136 +47,139 @@ export function TraceabilityView() {
   }
 
   return (
-    <div className="relative min-h-svh overflow-x-hidden">
+    // Outer viewport: fixed height so each panel scrolls independently
+    <div className="h-svh w-full overflow-hidden">
+      {/*
+        The row holds both panels side by side.
+        Sliding it left by 420px reveals the transfer panel that was
+        already sitting to the right — nothing animates "in", it's just uncovered.
+      */}
       <div
         className={cn(
-          "mx-auto w-full max-w-4xl px-6 py-8 pb-28 transition-transform duration-500 ease-in-out",
-          transferOpen && "-translate-x-[210px]"
+          "flex h-full transition-transform duration-[350ms] ease-in-out",
+          transferOpen && "-translate-x-[180px]"
         )}
       >
-          <Tabs
-            value={selectedAccountId}
-            onValueChange={selectAccount}
-            className="@container/main w-full"
-          >
-            <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
-              <div>
-                {selectedAccount ? (
-                  <>
-                    <h1 className="text-2xl font-semibold">
-                      Welcome {selectedAccount.name} user,
-                    </h1>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Here&apos;s an overview of your account.
-                    </p>
-                  </>
-                ) : null}
-              </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className={cn(
-                  "shrink-0 rounded-full bg-white transition-all duration-300 dark:bg-background",
-                  transferOpen && "opacity-0 pointer-events-none"
-                )}
-                onClick={() => setTransferOpen(true)}
-              >
-                <ArrowLeftRight />
-                Transfer Assets
-              </Button>
-            </header>
-
+        {/* ── Main content ───────────────────────────── */}
+        <div className="h-svh w-full min-w-0 flex-shrink-0 overflow-y-auto overscroll-y-contain">
+          <div className="mx-auto w-full max-w-4xl px-6 py-8 pb-28">
             <Tabs
-              value={contentView}
-              onValueChange={setContentView}
-              className="mb-4 w-full"
+              value={selectedAccountId}
+              onValueChange={selectAccount}
+              className="@container/main w-full"
             >
-              <TabsList variant="line">
-                <TabsTrigger value="assets">Assets</TabsTrigger>
-                <TabsTrigger value="history">History</TabsTrigger>
-              </TabsList>
-            </Tabs>
+              <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  {selectedAccount ? (
+                    <>
+                      <h1 className="text-2xl font-semibold">
+                        Welcome {selectedAccount.name} user,
+                      </h1>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Viewing coffee and cacao custody across the demo route.
+                      </p>
+                    </>
+                  ) : null}
+                </div>
 
-            <div className="fixed bottom-6 left-6 z-50 rounded-full border border-border bg-background p-1.5 shadow-lg">
-              <Label htmlFor="account-selector" className="sr-only">
-                Account
-              </Label>
-              <Select value={selectedAccountId} onValueChange={selectAccount}>
-                <SelectTrigger
-                  className="flex w-fit @4xl/main:hidden"
+                <Button
+                  type="button"
+                  variant="outline"
                   size="sm"
-                  id="account-selector"
+                  className={cn(
+                    "shrink-0 rounded-full bg-white transition-opacity duration-300 dark:bg-background",
+                    transferOpen && "pointer-events-none opacity-0"
+                  )}
+                  onClick={() => setTransferOpen(true)}
                 >
-                  <SelectValue placeholder="Select an account" />
-                </SelectTrigger>
-                <SelectContent>
-                  {accounts.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name} ({formatTons(accountTotalTons(account.id))}t)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <TabsList className="hidden gap-1 bg-transparent @4xl/main:flex">
-                {accounts.map((account, index) => (
-                  <Fragment key={account.id}>
-                    {index > 0 ? (
-                      <ChevronRight
-                        className="size-4 shrink-0 text-muted-foreground"
-                        aria-hidden
-                      />
-                    ) : null}
-                    <TabsTrigger value={account.id} className="flex-none">
-                      {account.name}
-                    </TabsTrigger>
-                  </Fragment>
-                ))}
-              </TabsList>
-            </div>
+                  <ArrowLeftRight />
+                  Transfer Assets
+                </Button>
+              </header>
 
-            <div className="overflow-hidden rounded-lg bg-muted">
-              {accounts.map((account) => {
-                const assets = assetsByAccount(account.id)
-                return (
-                  <TabsContent
-                    key={account.id}
-                    value={account.id}
-                    className="bg-muted"
-                  >
-                    {contentView === "assets" ? (
-                      <AssetsPanel account={account} assets={assets} />
-                    ) : (
-                      <HistoryPanel
-                        account={account}
-                        sent={transfersSentByAccount(account.id)}
-                        received={transfersReceivedByAccount(account.id)}
-                        accountNameById={accountNameById}
-                      />
-                    )}
-                  </TabsContent>
-                )
-              })}
-            </div>
-          </Tabs>
-      </div>
+              <Tabs
+                value={contentView}
+                onValueChange={setContentView}
+                className="mb-4 w-full"
+              >
+                <TabsList variant="line">
+                  <TabsTrigger value="assets">Assets</TabsTrigger>
+                  <TabsTrigger value="history">History</TabsTrigger>
+                </TabsList>
+              </Tabs>
 
-      <aside
-        className={cn(
-          "fixed top-0 right-0 z-40 h-svh w-[420px] overflow-y-auto overscroll-y-contain border-l border-border bg-background px-6 py-8 pb-28 transition-transform duration-500 ease-in-out",
-          transferOpen ? "translate-x-0" : "translate-x-full"
-        )}
-        aria-hidden={!transferOpen}
-      >
-        {transferOpen && (
+              <div className="overflow-hidden rounded-lg bg-muted">
+                {accounts.map((account) => {
+                  const assets = assetsByAccount(account.id)
+                  return (
+                    <TabsContent
+                      key={account.id}
+                      value={account.id}
+                      className="bg-muted"
+                    >
+                      {contentView === "assets" ? (
+                        <AssetsPanel account={account} assets={assets} />
+                      ) : (
+                        <HistoryPanel
+                          account={account}
+                          sent={transfersSentByAccount(account.id)}
+                          received={transfersReceivedByAccount(account.id)}
+                          accountNameById={accountNameById}
+                        />
+                      )}
+                    </TabsContent>
+                  )
+                })}
+              </div>
+            </Tabs>
+          </div>
+        </div>
+
+        {/* ── Transfer panel — always in the DOM, to the right ── */}
+        <aside
+          className={cn(
+            "h-svh w-[420px] flex-shrink-0 overflow-y-auto overscroll-y-contain border-l border-border bg-background px-6 py-8 pb-28 transition-transform duration-[600ms] delay-[60ms] ease-out",
+            transferOpen && "-translate-x-[240px]"
+          )}
+          aria-hidden={!transferOpen}
+        >
           <TransferPanel
             key={selectedAccountId}
             onClose={() => setTransferOpen(false)}
             fromAccountId={selectedAccountId}
           />
-        )}
-      </aside>
+        </aside>
+      </div>
+
+      {/* Account selector — fixed so it stays put during the slide */}
+      <div className="fixed bottom-6 left-6 z-50">
+        <Label htmlFor="account-selector" className="sr-only">
+          Account
+        </Label>
+        <Select value={selectedAccountId} onValueChange={selectAccount}>
+          <SelectTrigger
+            id="account-selector"
+            size="sm"
+            className="rounded-full bg-white shadow-lg dark:bg-background"
+          >
+            <SelectValue placeholder="Select an account" />
+          </SelectTrigger>
+          <SelectContent>
+            {accounts.map((account) => {
+              const StageIcon = STAGE_META[account.stageType].icon
+              return (
+                <SelectItem key={account.id} value={account.id}>
+                  <StageIcon className="size-4 text-muted-foreground" />
+                  <span>{account.name}</span>
+                  <span className="text-muted-foreground">
+                    ({formatTons(accountTotalTons(account.id))}t)
+                  </span>
+                </SelectItem>
+              )
+            })}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   )
 }
