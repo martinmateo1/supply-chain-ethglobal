@@ -32,6 +32,20 @@ export function assertRecipientPartyView(
   }
 }
 
+/** Only the production-site operational node may originate lots. */
+export function assertOriginLotProducer(
+  partyViewId: string,
+  accountId: string,
+): void {
+  const nodeId = operationalNodeForPartyView(partyViewId)
+  if (!nodeId || nodeId !== accountId || accountId !== "production-site") {
+    throw new LedgerError(
+      LedgerErrorCode.UNAUTHORIZED_PARTY_VIEW,
+      "Only the production-site Party View can create origin lots.",
+    )
+  }
+}
+
 export function assertTransferParticipant(
   partyViewId: string,
   fromAccountId: string,

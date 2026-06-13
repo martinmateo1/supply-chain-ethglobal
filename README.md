@@ -29,17 +29,17 @@ Each account holds **assets** (commodity lots) that carry:
 - **Quality rating** — A / B / C
 - **Quantity** in metric tons
 
-Transfers between accounts update the local custody state while preserving the certification chain of custody at every hop.
+Transfers between accounts update custody state while preserving the certification chain of custody at every hop.
 
 ---
 
 ## Features
 
 - **Combined commodity view** — inspect coffee beans and cacao in the same custody flow
-- **Account explorer** — browse each company or facility account in the supply chain
+- **Party View switcher** — selective visibility across operational nodes
 - **Asset ledger** — view current holdings per account with commodity icons and certification badges
-- **Transfer history** — full audit log of custody transfers between nodes
-- **Traceability view** — select any account and see its complete inbound/outbound transfer graph
+- **Transfer history** — audit log of custody transfers between nodes
+- **Canton ledger integration** — optional `LEDGER_BACKEND=canton` path with Daml-enforced conservation and anti-double-spend
 - **Dark mode** — fully styled for both light and dark themes
 - **Responsive layout** — works on desktop and tablet
 
@@ -51,14 +51,9 @@ Transfers between accounts update the local custody state while preserving the c
 - [TypeScript](https://www.typescriptlang.org/)
 - [Tailwind CSS v4](https://tailwindcss.com/)
 - [shadcn/ui](https://ui.shadcn.com/) component primitives
-- [Zustand](https://zustand-demo.pmnd.rs/) for **UI state only** (not custody truth)
-- [Daml](https://www.digitalasset.com/developers) / [Canton](https://www.digitalasset.com/developers) — custody source of truth (skeleton in `daml/`)
+- [Zustand](https://zustand-demo.pmnd.rs/) for **UI state only** (not custody truth under Canton)
+- [Daml](https://www.digitalasset.com/developers) / [Canton](https://www.digitalasset.com/developers) 3.5.1 via **`dpm`**
 - [Lucide React](https://lucide.dev/) icons
-
-Optional for later MVP stories (not required for the current UI demo):
-
-- **Supabase** — off-ledger evidence metadata / file references only
-- **Privy** — optional wallet or Party View login mapping
 
 ---
 
@@ -68,13 +63,14 @@ Optional for later MVP stories (not required for the current UI demo):
 |---|---|---|
 | Node.js | 20+ | Next.js app and TypeScript tooling |
 | pnpm | 9+ | Package manager |
-| Daml SDK | 2.9.x (see `daml/daml.yaml`) | Compile contracts, run Daml tests/scripts |
+| dpm | 1.x | Daml SDK 3.5.1 (`~/.dpm/bin/dpm`) |
+| Java 17 | Temurin recommended | Daml Script / Canton sandbox |
 
 ---
 
 ## Getting started
 
-### Frontend (UI demo)
+### Frontend (UI demo — default)
 
 ```bash
 pnpm install
@@ -83,81 +79,103 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-The dashboard currently reads seeded demo state from `lib/store.ts` (Zustand/localStorage). That store is a **demo adapter** — authoritative custody quantities will come from Canton via `lib/ledger/*` and `app/api/ledger/*` in later stories.
+By default `LEDGER_BACKEND=demo`. Custody state is validated by the gateway and persisted in the browser for the offline demo.
 
 ### Quality checks
 
 ```bash
 pnpm lint
 pnpm typecheck
+pnpm verify:custody-transfers
+pnpm verify:party-visibility
 ```
 
-### Daml / Canton (ledger skeleton)
+### Daml / Canton (ledger-backed demo)
 
-Install the [Daml SDK](https://docs.daml.com/getting-started/installation.html), then from the repo root:
+Install tooling via [dpm](https://docs.digitalasset.com/build/3.5/dpm/dpm.html), then from the repo root:
 
 ```bash
-cd daml
-daml build          # compile Commodity.* templates
-daml test           # run daml/Test/TraceabilityTest.daml (placeholder until Epic 3)
-daml script --dar .daml/dist/commodity-traceability-0.0.1.dar --script-name Scripts.SetupDemo:setupDemo
+# 1. Compile contracts + run Daml Script tests
+export JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home
+dpm build
+dpm test
+
+# 2. One-shot local ledger bring-up (build, sandbox, upload DAR, SetupDemo, codegen)
+pnpm run ledger:bringup
 ```
 
-**Canton LocalNet / DevNet:** not wired in this story. When a ledger runtime is available, set:
+Manual steps (equivalent to `ledger:bringup`):
+
+```bash
+dpm build
+dpm sandbox                    # gRPC :6865, JSON API :6864
+dpm script \
+  --dar .daml/dist/commodity-traceability-0.0.1.dar \
+  --script-name Scripts.SetupDemo:setupDemo \
+  --ledger-host localhost \
+  --ledger-port 6865 \
+  --upload-dar true
+pnpm run generate:daml-types
+```
+
+`SetupDemo` prints `DEMO_PARTY <node-id>=<party-id>` lines. Party hints match operational node ids (`production-site`, `truck-transport`, …).
+
+Configure the Next.js app:
 
 ```env
-CANTON_LEDGER_HOST=http://localhost:6865
-CANTON_LEDGER_ID=<your-ledger-id>
+LEDGER_BACKEND=canton
+CANTON_LEDGER_HOST=http://localhost:6864
+CANTON_LEDGER_ID=sandbox
+CANTON_PACKAGE_ID=<hash from dpm inspect-dar .daml/dist/commodity-traceability-0.0.1.dar>
 ```
 
-Until then, ledger integration modules throw `LEDGER_NOT_CONFIGURED` and the UI continues to use mock data.
+Then:
+
+```bash
+pnpm dev
+```
+
+Verify the Canton path:
+
+```bash
+LEDGER_BACKEND=canton \
+CANTON_LEDGER_HOST=http://localhost:6864 \
+CANTON_LEDGER_ID=sandbox \
+CANTON_PACKAGE_ID=<package-id> \
+pnpm ledger:verify-demo-flow
+
+pnpm ledger:attempt-double-spend   # same env vars
+```
 
 ### Generated TypeScript bindings
-
-After `daml build` succeeds:
 
 ```bash
 pnpm run generate:daml-types
 ```
 
-Bindings are written to `lib/ledger/generated/`. Do not hand-edit generated files.
-
-### Demo verification scripts (stubs)
-
-```bash
-pnpm run ledger:verify-demo-flow      # future end-to-end demo orchestration
-pnpm run ledger:attempt-double-spend  # future negative double-spend proof
-```
-
-These scripts document the anti-double-spend path explicitly; they do **not** pass the invariant yet.
+Output: `lib/ledger/generated/`. Do not hand-edit generated files.
 
 ---
 
 ## Project structure
 
 ```
-app/                    # Next.js App Router pages and future API routes
-components/             # Dashboard UI (traceability-view, panels, etc.)
-hooks/                  # React hooks (future Party View / ledger hooks)
+app/api/ledger/         # Custody gateway routes (demo + Canton dispatch)
+components/             # Dashboard UI
+hooks/                  # useCustodyGateway, useLedgerSync
 lib/
-  store.ts              # UI/demo state only — NOT custody authority
-  data.ts               # Seed accounts, assets, transfers for the mock demo
+  store.ts              # UI/demo state; custody not persisted under Canton
   ledger/
-    client.ts           # Canton client setup (gateway boundary)
-    commands.ts         # Ledger command construction
-    queries.ts          # Party View-aware queries
-    mappers.ts          # Daml/generated type → UI domain mapping
-    errors.ts           # Stable ledger error codes
-    generated/          # Daml TypeScript bindings (after codegen)
-daml/
-  daml.yaml             # Daml SDK project config
-  Commodity/            # LotPosition, CustodyTransfer, attestation templates
-  Scripts/              # Demo ledger seeding scripts
-  Test/                 # Contract tests including future double-spend negatives
+    canton-custody-service.ts
+    client.ts             # Canton JSON API v2 client
+    gateway.ts            # LEDGER_BACKEND dispatch
+    generated/            # dpm codegen-js output
+daml/                   # Daml source (custody source of truth)
 scripts/
-  generate-daml-types.ts
-  attempt-double-spend.ts
+  ledger-bringup.sh
   verify-demo-flow.ts
+  attempt-double-spend.ts
+daml.yaml               # Daml project config (repo root)
 ```
 
 ---
@@ -167,22 +185,10 @@ scripts/
 | Layer | Role |
 |---|---|
 | `daml/Commodity/*` | Authoritative custody, provenance, quantity conservation |
-| `lib/ledger/*` | TypeScript integration; no browser-direct Canton calls |
-| `lib/store.ts` | UI selections and demo seed state only |
-| `lib/data.ts` | Static demo seed data |
-| Supabase (optional) | Evidence document metadata — never custody quantity |
-| Privy (optional) | Auth / Party View mapping — does not replace Daml authorization |
-
----
-
-## Data model (UI demo)
-
-```
-Account  ──has many──▶  Asset
-Account  ──sends──────▶  Transfer  ◀──receives──  Account
-```
-
-Ledger domain terms (Daml): `LotPosition`, `CustodyTransfer`, `EvidenceReference`, `SourceAssetReference`, `TraceabilityAttestation`, `OperationalNode`, `PartyView`.
+| `lib/ledger/*` | Server-side Canton integration; no browser-direct ledger calls |
+| `app/api/ledger/*` | Stable gateway boundary for the UI |
+| `lib/store.ts` | UI selections; under Canton, holdings are fetched from the gateway |
+| `LEDGER_BACKEND=demo` | Offline demo adapter fallback |
 
 ---
 

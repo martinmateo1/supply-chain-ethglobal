@@ -2,16 +2,30 @@
 
 import { useCallback, useState } from "react"
 
+import { useLedgerConfig } from "@/hooks/use-ledger-config"
 import type { ApiResponse } from "@/lib/api/response"
 import type { CustodySnapshot } from "@/lib/demo/custody-service"
 import type { InitiateTransferRequest } from "@/lib/demo/custody-service"
 import { useTraceabilityStore } from "@/lib/store"
-import type { Asset, Transfer, TransferAttachment } from "@/lib/types"
+import type {
+  Asset,
+  Certification,
+  CommodityType,
+  Rating,
+  Transfer,
+  TransferAttachment,
+} from "@/lib/types"
 
 type CustodyMutationResult = {
   assets: Asset[]
   transfers: Transfer[]
   transfer: Transfer
+}
+
+type CreateLotMutationResult = {
+  assets: Asset[]
+  transfers: Transfer[]
+  asset: Asset
 }
 
 type GatewayError = {
@@ -21,7 +35,7 @@ type GatewayError = {
 
 async function postCustody<T>(
   path: string,
-  body: unknown
+  body: unknown,
 ): Promise<{ data?: T; error?: GatewayError }> {
   const response = await fetch(path, {
     method: "POST",
@@ -41,18 +55,19 @@ export function useCustodyGateway() {
   const assets = useTraceabilityStore((state) => state.assets)
   const transfers = useTraceabilityStore((state) => state.transfers)
   const selectedPartyViewId = useTraceabilityStore(
-    (state) => state.selectedPartyViewId
+    (state) => state.selectedPartyViewId,
   )
   const applyCustodySnapshot = useTraceabilityStore(
-    (state) => state.applyCustodySnapshot
+    (state) => state.applyCustodySnapshot,
   )
 
+  const { isCantonBackend: isCanton } = useLedgerConfig()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const getSnapshot = useCallback(
     (): CustodySnapshot => ({ assets, transfers }),
-    [assets, transfers]
+    [assets, transfers],
   )
 
   const initiateTransfer = useCallback(
@@ -66,15 +81,18 @@ export function useCustodyGateway() {
       setIsSubmitting(true)
       setError(null)
 
-      const request: InitiateTransferRequest & { snapshot: CustodySnapshot } = {
+      const request: InitiateTransferRequest & { snapshot?: CustodySnapshot } = {
         partyViewId: selectedPartyViewId,
-        snapshot: getSnapshot(),
         ...input,
+      }
+
+      if (!isCanton) {
+        request.snapshot = getSnapshot()
       }
 
       const { data, error: gatewayError } = await postCustody<CustodyMutationResult>(
         "/api/ledger/initiate-transfer",
-        request
+        request,
       )
 
       setIsSubmitting(false)
@@ -93,7 +111,7 @@ export function useCustodyGateway() {
       setError(fallback)
       return { ok: false as const, error: fallback }
     },
-    [applyCustodySnapshot, getSnapshot, selectedPartyViewId]
+    [applyCustodySnapshot, getSnapshot, isCanton, selectedPartyViewId],
   )
 
   const acceptTransfer = useCallback(
@@ -101,13 +119,19 @@ export function useCustodyGateway() {
       setIsSubmitting(true)
       setError(null)
 
-      const { data, error: gatewayError } = await postCustody<CustodyMutationResult>(
-        "/api/ledger/accept-transfer",
+      const body: { partyViewId: string; transferId: string; snapshot?: CustodySnapshot } =
         {
           partyViewId: selectedPartyViewId,
           transferId,
-          snapshot: getSnapshot(),
         }
+
+      if (!isCanton) {
+        body.snapshot = getSnapshot()
+      }
+
+      const { data, error: gatewayError } = await postCustody<CustodyMutationResult>(
+        "/api/ledger/accept-transfer",
+        body,
       )
 
       setIsSubmitting(false)
@@ -126,7 +150,7 @@ export function useCustodyGateway() {
       setError(fallback)
       return { ok: false as const, error: fallback }
     },
-    [applyCustodySnapshot, getSnapshot, selectedPartyViewId]
+    [applyCustodySnapshot, getSnapshot, isCanton, selectedPartyViewId],
   )
 
   const rejectTransfer = useCallback(
@@ -134,13 +158,19 @@ export function useCustodyGateway() {
       setIsSubmitting(true)
       setError(null)
 
-      const { data, error: gatewayError } = await postCustody<CustodyMutationResult>(
-        "/api/ledger/reject-transfer",
+      const body: { partyViewId: string; transferId: string; snapshot?: CustodySnapshot } =
         {
           partyViewId: selectedPartyViewId,
           transferId,
-          snapshot: getSnapshot(),
         }
+
+      if (!isCanton) {
+        body.snapshot = getSnapshot()
+      }
+
+      const { data, error: gatewayError } = await postCustody<CustodyMutationResult>(
+        "/api/ledger/reject-transfer",
+        body,
       )
 
       setIsSubmitting(false)
@@ -159,15 +189,61 @@ export function useCustodyGateway() {
       setError(fallback)
       return { ok: false as const, error: fallback }
     },
-    [applyCustodySnapshot, getSnapshot, selectedPartyViewId]
+    [applyCustodySnapshot, getSnapshot, isCanton, selectedPartyViewId],
+  )
+
+  const createLot = useCallback(
+    async (input: {
+      accountId: string
+      commodity: CommodityType
+      quantity: number
+      rating: Rating
+      certifications: Certification[]
+      originIdentifier: string
+      attachments?: TransferAttachment[]
+    }) => {
+      setIsSubmitting(true)
+      setError(null)
+
+      const request = {
+        partyViewId: selectedPartyViewId,
+        ...input,
+        ...(isCanton ? {} : { snapshot: getSnapshot() }),
+      }
+
+      const { data, error: gatewayError } =
+        await postCustody<CreateLotMutationResult>(
+          "/api/ledger/create-lot",
+          request,
+        )
+
+      setIsSubmitting(false)
+
+      if (gatewayError) {
+        setError(gatewayError.message)
+        return { ok: false as const, error: gatewayError.message }
+      }
+
+      if (data) {
+        applyCustodySnapshot({ assets: data.assets, transfers: data.transfers })
+        return { ok: true as const, asset: data.asset }
+      }
+
+      const fallback = "Lot position could not be created."
+      setError(fallback)
+      return { ok: false as const, error: fallback }
+    },
+    [applyCustodySnapshot, getSnapshot, isCanton, selectedPartyViewId],
   )
 
   return {
     initiateTransfer,
     acceptTransfer,
     rejectTransfer,
+    createLot,
     isSubmitting,
     error,
     clearError: () => setError(null),
+    isCantonBackend: isCanton,
   }
 }

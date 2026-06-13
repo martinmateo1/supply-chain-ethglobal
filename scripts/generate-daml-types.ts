@@ -1,18 +1,21 @@
 #!/usr/bin/env node
-/**
- * Regenerates TypeScript bindings from compiled Daml packages into lib/ledger/generated/.
- *
- * Prerequisites:
- *   - Daml SDK installed (https://docs.daml.com/getting-started/installation.html)
- *   - daml build succeeds in ./daml
- *
- * TODO: Wire to the project's chosen codegen path (daml codegen js or Canton TS bindings)
- * once the ledger runtime is selected for LocalNet/DevNet.
- */
-console.log(
-  [
-    "generate-daml-types: not yet wired.",
-    "Run `cd daml && daml build` after installing the Daml SDK.",
-    "Then update this script with the chosen codegen command for lib/ledger/generated/.",
-  ].join(" "),
-)
+import { spawnSync } from "node:child_process"
+import { existsSync } from "node:fs"
+import { resolve } from "node:path"
+
+const root = resolve(import.meta.dirname, "..")
+const dar = resolve(root, ".daml/dist/commodity-traceability-0.0.1.dar")
+const output = resolve(root, "lib/ledger/generated")
+const dpm = `${process.env.HOME}/.dpm/bin/dpm`
+
+if (!existsSync(dar)) {
+  console.error("DAR not found. Run `dpm build` first.")
+  process.exit(1)
+}
+
+const result = spawnSync(dpm, ["codegen-js", dar, "-o", output], {
+  stdio: "inherit",
+  cwd: root,
+})
+
+process.exit(result.status ?? 1)

@@ -34,6 +34,17 @@ export type TransferActionRequest = {
   transferId: string
 }
 
+export type CreateLotRequest = {
+  partyViewId: string
+  accountId: string
+  commodity: Asset["commodity"]
+  quantity: number
+  rating: Asset["rating"]
+  certifications: Asset["certifications"]
+  originIdentifier: string
+  attachments?: TransferAttachment[]
+}
+
 function inferDocumentType(attachment: TransferAttachment): string {
   if (attachment.documentType) return attachment.documentType
   const name = attachment.name.toLowerCase()

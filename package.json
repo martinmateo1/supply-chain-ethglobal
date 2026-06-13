@@ -10,9 +10,13 @@
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "generate:daml-types": "tsx scripts/generate-daml-types.ts",
-    "ledger:attempt-double-spend": "tsx scripts/attempt-double-spend.ts",
-    "ledger:verify-demo-flow": "tsx scripts/verify-demo-flow.ts",
+    "ledger:bringup": "bash scripts/ledger-bringup.sh",
+    "ledger:attempt-double-spend": "tsx --env-file-if-exists=.env.local scripts/attempt-double-spend.ts",
+    "ledger:verify-demo-flow": "tsx --env-file-if-exists=.env.local scripts/verify-demo-flow.ts",
+    "ledger:verify-create-lot": "tsx --env-file-if-exists=.env.local scripts/verify-create-lot.ts",
     "verify:party-visibility": "tsx scripts/verify-party-visibility.ts",
     "verify:custody-transfers": "tsx scripts/verify-custody-transfers.ts"
   },
@@ -35,6 +39,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.0.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "prettier": "^3.8.3",
@@ -42,6 +47,7 @@
     "shadcn": "^4.11.0",
     "tailwindcss": "^4",
     "tsx": "^4.19.4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.8"
   }
 }

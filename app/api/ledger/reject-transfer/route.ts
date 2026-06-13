@@ -1,16 +1,16 @@
 import {
-  rejectTransfer,
   type CustodySnapshot,
   type TransferActionRequest,
 } from "@/lib/demo/custody-service"
 import { ledgerRouteError, ledgerRouteSuccess } from "@/lib/api/ledger-route"
+import { gatewayRejectTransfer } from "@/lib/ledger/gateway"
 
-type RequestBody = TransferActionRequest & { snapshot: CustodySnapshot }
+type RequestBody = TransferActionRequest & { snapshot?: CustodySnapshot }
 
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as RequestBody
-    const result = rejectTransfer(body.snapshot, {
+    const result = await gatewayRejectTransfer(body.snapshot ?? { assets: [], transfers: [] }, {
       partyViewId: body.partyViewId,
       transferId: body.transferId,
     })

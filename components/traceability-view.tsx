@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion"
 import { useCustodyGateway } from "@/hooks/use-custody-gateway"
+import { useLedgerSync } from "@/hooks/use-ledger-sync"
 import {
   partyViewById,
   partyViewLabel,
@@ -51,6 +52,7 @@ export function TraceabilityView() {
   )
 
   const { acceptTransfer, rejectTransfer } = useCustodyGateway()
+  const { isCantonBackend, isSyncing, syncError } = useLedgerSync()
 
   const [transferActionState, setTransferActionState] = useState<{
     transferId: string
@@ -203,6 +205,15 @@ export function TraceabilityView() {
                 ) : null}
               </div>
             </header>
+
+            {isCantonBackend ? (
+              <p className="text-muted-foreground mb-4 text-sm">
+                {isSyncing
+                  ? "Refreshing holdings from Canton…"
+                  : "Holdings and pending transfers are read from the Canton ledger."}
+                {syncError ? ` ${syncError}` : null}
+              </p>
+            ) : null}
 
             <Tabs
               value={contentView}
