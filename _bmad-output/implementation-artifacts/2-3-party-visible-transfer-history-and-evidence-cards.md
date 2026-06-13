@@ -4,7 +4,7 @@ baseline_commit: b560e8ec4e24697726db988c384e4a54d71ba374
 
 # Story 2.3: Party-Visible Transfer History and Evidence Cards
 
-Status: review
+Status: done
 
 ## Story
 

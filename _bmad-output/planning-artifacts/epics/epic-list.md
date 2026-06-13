@@ -23,3 +23,9 @@ Storage and logistics operators can split, combine, conserve, and move quantitie
 Authorized destination or port users can generate and present a selective custody-chain attestation without exposing unrelated private ledger data.
 
 **FRs covered:** FR14, FR15, FR16
+
+## Epic 5: Canton Ledger Integration (Vertical Slice)
+
+Replace the client-side demo custody adapter with a Canton/Daml-backed source of truth so custody, provenance, and selective visibility are enforced on-ledger, delivered as an end-to-end vertical slice (create lot → transfer → accept) on a local Canton ledger.
+
+**FRs hardened:** FR1, FR2, FR3, FR4, FR5, FR6, FR7

@@ -4,7 +4,7 @@ baseline_commit: b560e8ec4e24697726db988c384e4a54d71ba374
 
 # Story 2.4: Ledger Gateway Boundaries for Custody Actions
 
-Status: review
+Status: done
 
 ## Story
 

@@ -4,7 +4,7 @@ baseline_commit: b560e8ec4e24697726db988c384e4a54d71ba374
 
 # Story 2.2: Pending Inbound Transfer Acceptance
 
-Status: review
+Status: done
 
 ## Story
 
@@ -61,3 +61,4 @@ Composer
 ### Change Log
 
 - 2026-06-13: Story 2.2 — Pending inbound accept/reject workflow.
+- 2026-06-13: Epic 2 closeout — show source provenance summary on transfer rows (AC 2.2.1).

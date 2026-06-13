@@ -1,0 +1,35 @@
+---
+description: How to build, run, test, and generate bindings for Daml/Canton using dpm
+globs: daml/**,**/*.daml,daml.yaml
+alwaysApply: false
+---
+
+# Daml / Canton via dpm
+
+The Daml SDK is installed and managed through **`dpm`** (Daml Package Manager, `~/.dpm/bin/dpm`). There is **no** `daml` or `canton` binary on `PATH` — always invoke tooling through `dpm`.
+
+- SDK version: `3.5.1` (pinned in `daml.yaml` as `sdk-version`). Check installed SDKs with `dpm version`.
+- Project config: `daml.yaml` lives at the **repo root** (not in `daml/`), with `source: daml`.
+
+## Commands
+
+Run from the repo root:
+
+```bash
+dpm build                 # compile -> .daml/dist/commodity-traceability-0.0.1.dar
+dpm test                  # run all Daml Script test declarations
+dpm script                # run a specific Daml Script (e.g. Scripts.SetupDemo)
+dpm sandbox               # full Canton in a single process (local ledger / LocalNet)
+dpm codegen-js            # generate JS/TS bindings -> lib/ledger/generated/
+dpm canton-console        # Canton console against a running participant
+dpm inspect-dar / validate-dar
+dpm studio                # launch Daml Studio
+```
+
+## Conventions
+
+- After editing any `.daml` file, run `dpm build` and confirm it produces the DAR before claiming success.
+- Cover behavior with Daml Script tests in `daml/Test/`; assert negative cases (e.g. double-spend) with `submitMustFail`, not silent passes.
+- Generated bindings belong only in `lib/ledger/generated/`; never hand-edit them — regenerate with `dpm codegen-js`.
+- `dpm build` warns that templates depend on `daml-script` (bloats the package store on upload). Acceptable for the hackathon; to silence, add `-Wno-template-interface-depends-on-daml-script`, or split scripts/tests into a separate package later.
+- Keep `daml/` as the custody source of truth; do not move custody authority into the frontend store. The browser must not submit raw Canton commands — go through `app/api/ledger/*` and `lib/ledger/*`.

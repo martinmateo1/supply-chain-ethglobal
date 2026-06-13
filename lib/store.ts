@@ -241,6 +241,7 @@ export const useTraceabilityStore = create<TraceabilityState>()(
     {
       name: "hackathon-traceability",
       version: 10,
+      skipHydration: true,
       storage: createJSONStorage(() => localStorage),
       migrate: (persistedState, version) => {
         const state = persistedState as PersistedTraceabilityState

@@ -163,6 +163,17 @@ export function TransferRow({
                   </span>
                 </>
               ) : null}
+              {transfer.sourceProvenanceRef ? (
+                <>
+                  <span aria-hidden>·</span>
+                  <span className="inline-flex min-w-0 items-center gap-1">
+                    <span>Origin</span>
+                    <span className="select-all font-mono text-xs">
+                      {transfer.sourceProvenanceRef}
+                    </span>
+                  </span>
+                </>
+              ) : null}
             </p>
             <Button
               type="button"
