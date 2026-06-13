@@ -4,24 +4,36 @@ import { createJSONStorage, persist } from "zustand/middleware"
 import {
   DEFAULT_SELECTED_ACCOUNT_ID,
   SEED_ACCOUNTS,
-  SEED_HOLDINGS,
+  SEED_ASSETS,
+  SEED_TRANSFERS,
 } from "@/lib/data"
-import type { Account, Holding } from "@/lib/types"
+import type { Account, Asset, Transfer } from "@/lib/types"
 
 type TraceabilityState = {
   accounts: Account[]
-  holdings: Holding[]
+  assets: Asset[]
+  transfers: Transfer[]
   selectedAccountId: string
   selectAccount: (id: string) => void
   resetData: () => void
-  holdingsByAccount: (accountId: string) => Holding[]
+  assetsByAccount: (accountId: string) => Asset[]
+  transfersSentByAccount: (accountId: string) => Transfer[]
+  transfersReceivedByAccount: (accountId: string) => Transfer[]
   accountTotalTons: (accountId: string) => number
 }
 
 const initialState = {
   accounts: SEED_ACCOUNTS,
-  holdings: SEED_HOLDINGS,
+  assets: SEED_ASSETS,
+  transfers: SEED_TRANSFERS,
   selectedAccountId: DEFAULT_SELECTED_ACCOUNT_ID,
+}
+
+type PersistedTraceabilityState = {
+  assets?: Asset[]
+  transfers?: Transfer[]
+  holdings?: Asset[]
+  selectedAccountId?: string
 }
 
 export const useTraceabilityStore = create<TraceabilityState>()(
@@ -30,27 +42,79 @@ export const useTraceabilityStore = create<TraceabilityState>()(
       ...initialState,
       selectAccount: (id) => set({ selectedAccountId: id }),
       resetData: () => set(initialState),
-      holdingsByAccount: (accountId) =>
-        get().holdings.filter((holding) => holding.accountId === accountId),
+      assetsByAccount: (accountId) =>
+        get().assets.filter((asset) => asset.accountId === accountId),
+      transfersSentByAccount: (accountId) =>
+        get()
+          .transfers.filter((transfer) => transfer.fromAccountId === accountId)
+          .sort(
+            (a, b) =>
+              new Date(b.occurredAt).getTime() -
+              new Date(a.occurredAt).getTime()
+          ),
+      transfersReceivedByAccount: (accountId) =>
+        get()
+          .transfers.filter((transfer) => transfer.toAccountId === accountId)
+          .sort(
+            (a, b) =>
+              new Date(b.occurredAt).getTime() -
+              new Date(a.occurredAt).getTime()
+          ),
       accountTotalTons: (accountId) =>
         get()
-          .holdings.filter((holding) => holding.accountId === accountId)
-          .reduce((total, holding) => total + holding.quantity, 0),
+          .assets.filter((asset) => asset.accountId === accountId)
+          .reduce((total, asset) => total + asset.quantity, 0),
     }),
     {
       name: "hackathon-traceability",
-      version: 1,
+      version: 6,
       storage: createJSONStorage(() => localStorage),
+      migrate: (persistedState, version) => {
+        const state = persistedState as PersistedTraceabilityState
+
+        if (version < 2) {
+          return {
+            selectedAccountId: state.selectedAccountId,
+            assets: SEED_ASSETS,
+          }
+        }
+
+        if (version < 3) {
+          return {
+            selectedAccountId: state.selectedAccountId,
+            assets: state.assets ?? state.holdings ?? SEED_ASSETS,
+          }
+        }
+
+        if (version < 5) {
+          return {
+            selectedAccountId: state.selectedAccountId,
+            assets: SEED_ASSETS,
+          }
+        }
+
+        if (version < 6) {
+          return {
+            selectedAccountId: state.selectedAccountId,
+            assets: state.assets ?? SEED_ASSETS,
+            transfers: SEED_TRANSFERS,
+          }
+        }
+
+        return state
+      },
       partialize: (state) => ({
-        holdings: state.holdings,
+        assets: state.assets,
+        transfers: state.transfers,
         selectedAccountId: state.selectedAccountId,
       }),
       merge: (persisted, current) => {
-        const persistedState = persisted as Partial<TraceabilityState> | undefined
+        const persistedState = persisted as PersistedTraceabilityState | undefined
 
         return {
           ...current,
-          holdings: persistedState?.holdings ?? current.holdings,
+          assets: persistedState?.assets ?? current.assets,
+          transfers: persistedState?.transfers ?? current.transfers,
           selectedAccountId:
             persistedState?.selectedAccountId ?? current.selectedAccountId,
         }

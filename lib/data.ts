@@ -1,20 +1,27 @@
-import type { Account, Holding } from "@/lib/types"
+import type {
+  Account,
+  Asset,
+  Certification,
+  CommodityType,
+  Rating,
+  Transfer,
+} from "@/lib/types"
 
 export const SEED_ACCOUNTS: Account[] = [
   {
     id: "campo",
-    name: "Campo",
+    name: "Field",
     stageType: "campo",
     order: 0,
     location: "Pergamino, Buenos Aires",
-    operator: "Estancia La Aurora",
+    operator: "La Aurora Ranch",
   },
   {
     id: "transporte-1",
-    name: "Transporte",
+    name: "Transport",
     stageType: "transporte",
     order: 1,
-    operator: "Logística del Sur",
+    operator: "Southern Logistics",
   },
   {
     id: "silo",
@@ -22,104 +29,175 @@ export const SEED_ACCOUNTS: Account[] = [
     stageType: "silo",
     order: 2,
     location: "Rosario, Santa Fe",
-    operator: "Cooperativa Granero",
+    operator: "Granero Cooperative",
   },
   {
     id: "transporte-2",
-    name: "Transporte",
+    name: "Transport",
     stageType: "transporte",
     order: 3,
-    operator: "Fletes del Litoral",
+    operator: "Littoral Freight",
   },
   {
     id: "puerto",
-    name: "Puerto",
+    name: "Port",
     stageType: "puerto",
     order: 4,
-    location: "Puerto de San Lorenzo",
-    operator: "Terminal Norte",
+    location: "San Lorenzo Port",
+    operator: "North Terminal",
   },
   {
     id: "transporte-3",
-    name: "Transporte",
+    name: "Transport",
     stageType: "transporte",
     order: 5,
-    operator: "Transporte Portuario",
+    operator: "Port Haulage",
   },
   {
     id: "planta",
-    name: "Planta de procesamiento",
+    name: "Processing plant",
     stageType: "planta",
     order: 6,
     location: "San Lorenzo, Santa Fe",
-    operator: "Aceitera del Paraná",
+    operator: "Parana Oil Mill",
   },
 ]
 
-export const SEED_HOLDINGS: Holding[] = [
+const COMMODITIES: CommodityType[] = ["soybean", "wheat", "corn"]
+
+const CERTIFICATION_SETS: Certification[][] = [
+  ["non-gmo", "deforestation-free"],
+  ["non-gmo"],
+  ["deforestation-free"],
+  ["non-gmo", "deforestation-free"],
+]
+
+const RATINGS: Rating[] = ["A", "B", "C"]
+
+const ASSET_COUNTS_BY_ACCOUNT: Record<string, number> = {
+  campo: 10,
+  "transporte-1": 6,
+  silo: 12,
+  "transporte-2": 4,
+  puerto: 11,
+  "transporte-3": 5,
+  planta: 8,
+}
+
+function seedQuantity(accountOrder: number, index: number): number {
+  const raw = 12_000 + ((accountOrder * 5_173 + index * 2_891) % 40_001)
+  return Math.round(raw / 50) * 50
+}
+
+function buildSeedAssets(): Asset[] {
+  let id = 1
+
+  return SEED_ACCOUNTS.flatMap((account) => {
+    const count = ASSET_COUNTS_BY_ACCOUNT[account.id] ?? 6
+
+    return Array.from({ length: count }, (_, index) => ({
+      id: `a${id++}`,
+      accountId: account.id,
+      commodity: COMMODITIES[(account.order + index) % COMMODITIES.length],
+      certifications:
+        CERTIFICATION_SETS[(account.order + index) % CERTIFICATION_SETS.length],
+      rating: RATINGS[(account.order + index) % RATINGS.length],
+      quantity: seedQuantity(account.order, index),
+      unit: "tons" as const,
+    }))
+  })
+}
+
+export const SEED_ASSETS = buildSeedAssets()
+
+export const SEED_TRANSFERS: Transfer[] = [
   {
-    id: "h1",
-    accountId: "campo",
+    id: "t1",
+    fromAccountId: "campo",
+    toAccountId: "transporte-1",
     commodity: "soybean",
     certifications: ["non-gmo", "deforestation-free"],
-    quantity: 120,
+    rating: "A",
+    quantity: 12_500,
     unit: "tons",
+    occurredAt: "2026-06-10T14:30:00.000Z",
   },
   {
-    id: "h2",
-    accountId: "campo",
-    commodity: "corn",
-    certifications: ["non-gmo"],
-    quantity: 80,
-    unit: "tons",
-  },
-  {
-    id: "h3",
-    accountId: "campo",
-    commodity: "soybean",
-    certifications: ["non-gmo"],
-    quantity: 45,
-    unit: "tons",
-  },
-  {
-    id: "h4",
-    accountId: "transporte-1",
+    id: "t2",
+    fromAccountId: "transporte-1",
+    toAccountId: "silo",
     commodity: "soybean",
     certifications: ["non-gmo", "deforestation-free"],
-    quantity: 60,
+    rating: "A",
+    quantity: 12_500,
     unit: "tons",
+    occurredAt: "2026-06-10T18:45:00.000Z",
   },
   {
-    id: "h5",
-    accountId: "silo",
+    id: "t3",
+    fromAccountId: "campo",
+    toAccountId: "transporte-1",
     commodity: "wheat",
     certifications: ["deforestation-free"],
-    quantity: 200,
+    rating: "B",
+    quantity: 8_200,
     unit: "tons",
+    occurredAt: "2026-06-09T09:15:00.000Z",
   },
   {
-    id: "h6",
-    accountId: "silo",
+    id: "t4",
+    fromAccountId: "silo",
+    toAccountId: "transporte-2",
     commodity: "corn",
-    certifications: ["non-gmo", "deforestation-free"],
-    quantity: 150,
+    certifications: ["non-gmo"],
+    rating: "A",
+    quantity: 15_000,
     unit: "tons",
+    occurredAt: "2026-06-08T11:00:00.000Z",
   },
   {
-    id: "h7",
-    accountId: "puerto",
-    commodity: "soybean",
-    certifications: ["non-gmo", "deforestation-free"],
-    quantity: 90,
+    id: "t5",
+    fromAccountId: "transporte-2",
+    toAccountId: "puerto",
+    commodity: "corn",
+    certifications: ["non-gmo"],
+    rating: "A",
+    quantity: 15_000,
     unit: "tons",
+    occurredAt: "2026-06-08T16:20:00.000Z",
   },
   {
-    id: "h8",
-    accountId: "planta",
+    id: "t6",
+    fromAccountId: "puerto",
+    toAccountId: "transporte-3",
     commodity: "soybean",
     certifications: ["non-gmo"],
-    quantity: 30,
+    rating: "B",
+    quantity: 22_400,
     unit: "tons",
+    occurredAt: "2026-06-07T08:30:00.000Z",
+  },
+  {
+    id: "t7",
+    fromAccountId: "transporte-3",
+    toAccountId: "planta",
+    commodity: "soybean",
+    certifications: ["non-gmo"],
+    rating: "B",
+    quantity: 22_400,
+    unit: "tons",
+    occurredAt: "2026-06-07T13:10:00.000Z",
+  },
+  {
+    id: "t8",
+    fromAccountId: "silo",
+    toAccountId: "transporte-2",
+    commodity: "wheat",
+    certifications: ["deforestation-free"],
+    rating: "C",
+    quantity: 6_750,
+    unit: "tons",
+    occurredAt: "2026-06-06T10:45:00.000Z",
   },
 ]
 
