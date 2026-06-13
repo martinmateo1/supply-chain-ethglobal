@@ -5,6 +5,7 @@ import { Fragment, useState } from "react"
 
 import { AssetsPanel } from "@/components/assets-panel"
 import { HistoryPanel } from "@/components/history-panel"
+import { TransferModal } from "@/components/transfer-modal"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import {
@@ -39,6 +40,7 @@ export function TraceabilityView() {
     (account) => account.id === selectedAccountId
   )
   const [contentView, setContentView] = useState("assets")
+  const [transferModalOpen, setTransferModalOpen] = useState(false)
 
   function accountNameById(id: string): string {
     return accounts.find((account) => account.id === id)?.name ?? id
@@ -70,6 +72,7 @@ export function TraceabilityView() {
             variant="outline"
             size="sm"
             className="shrink-0 rounded-full bg-white dark:bg-background"
+            onClick={() => setTransferModalOpen(true)}
           >
             <ArrowLeftRight />
             Transfer Assets
@@ -148,6 +151,12 @@ export function TraceabilityView() {
           })}
         </div>
       </Tabs>
+
+      <TransferModal
+        open={transferModalOpen}
+        onOpenChange={setTransferModalOpen}
+        defaultFromAccountId={selectedAccountId}
+      />
     </div>
   )
 }
