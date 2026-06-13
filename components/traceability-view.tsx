@@ -1,79 +1,153 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { ArrowLeftRight, ChevronRight } from "lucide-react"
+import { Fragment, useState } from "react"
 
-import { AccountList } from "@/components/account-list"
-import { HoldingsPanel } from "@/components/holdings-panel"
-import { Separator } from "@/components/ui/separator"
+import { AssetsPanel } from "@/components/assets-panel"
+import { HistoryPanel } from "@/components/history-panel"
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useTraceabilityStore } from "@/lib/store"
+import { STAGE_META } from "@/lib/types"
+import { formatTons } from "@/lib/utils"
 
 export function TraceabilityView() {
-  const [hydrated, setHydrated] = useState(
-    () => useTraceabilityStore.persist.hasHydrated()
-  )
   const accounts = useTraceabilityStore((state) => state.accounts)
   const selectedAccountId = useTraceabilityStore(
     (state) => state.selectedAccountId
   )
   const selectAccount = useTraceabilityStore((state) => state.selectAccount)
-  const holdingsByAccount = useTraceabilityStore(
-    (state) => state.holdingsByAccount
-  )
+  const assetsByAccount = useTraceabilityStore((state) => state.assetsByAccount)
   const accountTotalTons = useTraceabilityStore(
     (state) => state.accountTotalTons
   )
-
-  useEffect(() => {
-    if (hydrated) {
-      return
-    }
-
-    return useTraceabilityStore.persist.onFinishHydration(() => {
-      setHydrated(true)
-    })
-  }, [hydrated])
-
+  const transfersSentByAccount = useTraceabilityStore(
+    (state) => state.transfersSentByAccount
+  )
+  const transfersReceivedByAccount = useTraceabilityStore(
+    (state) => state.transfersReceivedByAccount
+  )
   const selectedAccount = accounts.find(
     (account) => account.id === selectedAccountId
   )
-  const holdings = hydrated ? holdingsByAccount(selectedAccountId) : []
-  const totalTons = hydrated ? accountTotalTons(selectedAccountId) : 0
+  const [contentView, setContentView] = useState("assets")
+
+  function accountNameById(id: string): string {
+    return accounts.find((account) => account.id === id)?.name ?? id
+  }
 
   return (
-    <div className="flex min-h-svh flex-col">
-      <header className="border-b px-6 py-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="mx-auto min-h-svh w-full max-w-4xl px-6 py-8 pb-28">
+      <Tabs
+        value={selectedAccountId}
+        onValueChange={selectAccount}
+        className="@container/main w-full"
+      >
+        <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-xl font-semibold tracking-tight">
-              Trazabilidad de Commodities
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Trace commodity holdings across supply chain stages
-            </p>
+            {selectedAccount ? (
+              <>
+                <h1 className="text-2xl font-semibold">
+                  Welcome {STAGE_META[selectedAccount.stageType].label} user,
+                </h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Here&apos;s an overview of your account.
+                </p>
+              </>
+            ) : null}
           </div>
-          <p className="font-mono text-xs text-muted-foreground">
-            Press <kbd className="rounded border px-1">d</kbd> to toggle theme
-          </p>
-        </div>
-      </header>
 
-      <div className="grid min-h-0 flex-1 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <aside className="min-h-0 border-b lg:border-r lg:border-b-0">
-          <AccountList
-            accounts={accounts}
-            selectedAccountId={selectedAccountId}
-            onSelect={selectAccount}
-          />
-        </aside>
-        <Separator className="lg:hidden" />
-        <section className="min-h-0 lg:min-h-0">
-          <HoldingsPanel
-            account={selectedAccount}
-            holdings={holdings}
-            totalTons={totalTons}
-          />
-        </section>
-      </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="shrink-0 rounded-full bg-white dark:bg-background"
+          >
+            <ArrowLeftRight />
+            Transfer Assets
+          </Button>
+        </header>
+
+        <Tabs
+          value={contentView}
+          onValueChange={setContentView}
+          className="mb-4 w-full"
+        >
+          <TabsList variant="line">
+            <TabsTrigger value="assets">Assets</TabsTrigger>
+            <TabsTrigger value="history">History</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <div className="fixed bottom-6 left-6 z-50 rounded-full border border-border bg-background p-1.5 shadow-lg">
+          <Label htmlFor="account-selector" className="sr-only">
+            Account
+          </Label>
+          <Select value={selectedAccountId} onValueChange={selectAccount}>
+            <SelectTrigger
+              className="flex w-fit @4xl/main:hidden"
+              size="sm"
+              id="account-selector"
+            >
+              <SelectValue placeholder="Select an account" />
+            </SelectTrigger>
+            <SelectContent>
+              {accounts.map((account) => (
+                <SelectItem key={account.id} value={account.id}>
+                  {account.name} ({formatTons(accountTotalTons(account.id))}t)
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <TabsList className="hidden gap-1 bg-transparent @4xl/main:flex">
+            {accounts.map((account, index) => (
+              <Fragment key={account.id}>
+                {index > 0 ? (
+                  <ChevronRight
+                    className="size-4 shrink-0 text-muted-foreground"
+                    aria-hidden
+                  />
+                ) : null}
+                <TabsTrigger value={account.id} className="flex-none">
+                  {account.name}
+                </TabsTrigger>
+              </Fragment>
+            ))}
+          </TabsList>
+        </div>
+
+        <div className="overflow-hidden rounded-lg bg-muted">
+          {accounts.map((account) => {
+            const assets = assetsByAccount(account.id)
+            return (
+              <TabsContent
+                key={account.id}
+                value={account.id}
+                className="bg-muted"
+              >
+                {contentView === "assets" ? (
+                  <AssetsPanel account={account} assets={assets} />
+                ) : (
+                  <HistoryPanel
+                    account={account}
+                    sent={transfersSentByAccount(account.id)}
+                    received={transfersReceivedByAccount(account.id)}
+                    accountNameById={accountNameById}
+                  />
+                )}
+              </TabsContent>
+            )
+          })}
+        </div>
+      </Tabs>
     </div>
   )
 }
