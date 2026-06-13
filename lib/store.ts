@@ -7,6 +7,8 @@ import {
   SEED_ASSETS,
   SEED_TRANSFERS,
 } from "@/lib/data"
+import { isAssetVisibleToParty, transferMatchesAsset } from "@/lib/provenance"
+import { withSeedTransferAssetIds } from "@/lib/seed-transfer-assets"
 import type { Account, Asset, Transfer, TransferAttachment } from "@/lib/types"
 
 type NewTransferInput = {
@@ -25,6 +27,10 @@ type TraceabilityState = {
   selectAccount: (id: string) => void
   resetData: () => void
   addTransfer: (input: NewTransferInput) => void
+  assetById: (id: string) => Asset | undefined
+  accountById: (id: string) => Account | undefined
+  relatedTransfersForAsset: (assetId: string) => Transfer[]
+  isAssetVisibleToSelectedParty: (assetId: string) => boolean
   assetsByAccount: (accountId: string) => Asset[]
   transfersSentByAccount: (accountId: string) => Transfer[]
   transfersReceivedByAccount: (accountId: string) => Transfer[]
@@ -43,6 +49,10 @@ type PersistedTraceabilityState = {
   transfers?: Transfer[]
   holdings?: Asset[]
   selectedAccountId?: string
+}
+
+function normalizeTransfers(transfers: Transfer[] | undefined): Transfer[] {
+  return withSeedTransferAssetIds(transfers ?? SEED_TRANSFERS)
 }
 
 export const useTraceabilityStore = create<TraceabilityState>()(
@@ -103,6 +113,7 @@ export const useTraceabilityStore = create<TraceabilityState>()(
           id: `t${Date.now()}`,
           fromAccountId,
           toAccountId,
+          assetId,
           commodity: sourceAsset.commodity,
           certifications: sourceAsset.certifications,
           rating: sourceAsset.rating,
@@ -113,6 +124,30 @@ export const useTraceabilityStore = create<TraceabilityState>()(
         }
 
         set({ assets: finalAssets, transfers: [...state.transfers, newTransfer] })
+      },
+      assetById: (id) => get().assets.find((asset) => asset.id === id),
+      accountById: (id) => get().accounts.find((account) => account.id === id),
+      relatedTransfersForAsset: (assetId) => {
+        const asset = get().assets.find((item) => item.id === assetId)
+        if (!asset) return []
+
+        return get()
+          .transfers.filter((transfer) => transferMatchesAsset(transfer, asset))
+          .sort(
+            (a, b) =>
+              new Date(b.occurredAt).getTime() -
+              new Date(a.occurredAt).getTime()
+          )
+      },
+      isAssetVisibleToSelectedParty: (assetId) => {
+        const asset = get().assets.find((item) => item.id === assetId)
+        if (!asset) return false
+
+        return isAssetVisibleToParty(
+          asset,
+          get().selectedAccountId,
+          get().transfers
+        )
       },
       assetsByAccount: (accountId) =>
         get().assets.filter((asset) => asset.accountId === accountId),
@@ -139,10 +174,18 @@ export const useTraceabilityStore = create<TraceabilityState>()(
     }),
     {
       name: "hackathon-traceability",
-      version: 7,
+      version: 8,
       storage: createJSONStorage(() => localStorage),
       migrate: (persistedState, version) => {
         const state = persistedState as PersistedTraceabilityState
+
+        if (version < 8) {
+          return {
+            selectedAccountId: state.selectedAccountId ?? DEFAULT_SELECTED_ACCOUNT_ID,
+            assets: state.assets ?? SEED_ASSETS,
+            transfers: normalizeTransfers(state.transfers),
+          }
+        }
 
         if (version < 7) {
           return {
@@ -181,7 +224,10 @@ export const useTraceabilityStore = create<TraceabilityState>()(
           }
         }
 
-        return state
+        return {
+          ...state,
+          transfers: normalizeTransfers(state.transfers),
+        }
       },
       partialize: (state) => ({
         assets: state.assets,
@@ -194,7 +240,7 @@ export const useTraceabilityStore = create<TraceabilityState>()(
         return {
           ...current,
           assets: persistedState?.assets ?? current.assets,
-          transfers: persistedState?.transfers ?? current.transfers,
+          transfers: normalizeTransfers(persistedState?.transfers),
           selectedAccountId:
             persistedState?.selectedAccountId ?? current.selectedAccountId,
         }

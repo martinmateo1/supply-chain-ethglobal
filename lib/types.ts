@@ -54,6 +54,7 @@ export type Transfer = {
   id: string
   fromAccountId: string
   toAccountId: string
+  assetId?: string
   commodity: CommodityType
   certifications: Certification[]
   rating: Rating
@@ -131,9 +132,9 @@ export const STAGE_META: Record<
   truck: { label: "Truck transport", icon: Truck },
   silo: { label: "Silo", icon: Warehouse },
   railway: { label: "Railway transport", icon: Factory },
-  "origin-port": { label: "Origin port", icon: Anchor },
-  ship: { label: "Ship", icon: Anchor },
-  "destination-port": { label: "Destination port", icon: Anchor },
+  "origin-port": { label: "Port terminal", icon: Anchor },
+  ship: { label: "Vessel logistics", icon: Anchor },
+  "destination-port": { label: "Receiving port terminal", icon: Anchor },
 }
 
 export function certificationKey(certifications: Certification[]): string {

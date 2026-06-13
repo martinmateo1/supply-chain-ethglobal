@@ -1,3 +1,5 @@
+import Link from "next/link"
+
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -73,8 +75,9 @@ export function AssetRow({ asset }: AssetRowProps) {
             variant="link"
             size="xs"
             className="m-0 h-auto min-h-0 min-w-0 flex-1 justify-end p-0 text-sm leading-snug text-muted-foreground"
+            asChild
           >
-            View details
+            <Link href={`/assets/${asset.id}`}>View details</Link>
           </Button>
         </div>
       </div>
