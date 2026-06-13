@@ -1,11 +1,13 @@
 "use client"
 
-import { ChevronRight } from "lucide-react"
-
+import { NON_INVOLVED_PARTY_VIEW_ID } from "@/lib/demo/party-views"
 import {
-  NON_INVOLVED_PARTY_VIEW_ID,
-} from "@/lib/demo/party-views"
-import { cn } from "@/lib/utils"
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export type DemoStep = {
   id: string
@@ -70,50 +72,28 @@ export function DemoStepper({
 }: DemoStepperProps) {
   const activeStep = activeStepForPartyView(selectedPartyViewId)
 
-  return (
-    <nav
-      aria-label="Demo custody route"
-      className="mb-6 overflow-x-auto rounded-lg border border-border/60 bg-background/80 px-3 py-3"
-    >
-      <ol className="flex min-w-max items-center gap-1">
-        {DEMO_STEPS.map((step, index) => {
-          const isActive = step.id === activeStep.id
-          const isAttestationHint =
-            step.id === "attestation" &&
-            selectedPartyViewId === "destination-port" &&
-            activeStep.id === "attestation"
+  function handleValueChange(stepId: string) {
+    const step = DEMO_STEPS.find((s) => s.id === stepId)
+    if (step) onSelectPartyView(step.partyViewId)
+  }
 
-          return (
-            <li key={step.id} className="flex items-center gap-1">
-              {index > 0 ? (
-                <ChevronRight
-                  className="size-3.5 shrink-0 text-muted-foreground/50"
-                  aria-hidden
-                />
-              ) : null}
-              <button
-                type="button"
-                onClick={() => onSelectPartyView(step.partyViewId)}
-                aria-current={isActive ? "step" : undefined}
-                className={cn(
-                  "rounded-md px-2 py-1 text-xs font-medium whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  isActive && step.isPrivacy
-                    ? "bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-100"
-                    : isActive || isAttestationHint
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                {step.label}
-              </button>
-            </li>
-          )
-        })}
-      </ol>
-      <p className="mt-2 text-xs text-muted-foreground">
-        Guided demo route — switch Party Views to show Canton selective visibility
-        at each custody stage.
-      </p>
-    </nav>
+  return (
+    <Select value={activeStep.id} onValueChange={handleValueChange}>
+      <SelectTrigger
+        size="sm"
+        aria-label="Demo custody route"
+        className="h-6 min-h-0 w-auto max-w-40 gap-1 rounded-md border-border/60 bg-transparent px-2 py-0 text-xs shadow-none"
+      >
+        <span className="text-muted-foreground">Demo</span>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent position="popper" align="start">
+        {DEMO_STEPS.map((step) => (
+          <SelectItem key={step.id} value={step.id}>
+            {step.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   )
 }

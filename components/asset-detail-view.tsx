@@ -1,19 +1,27 @@
 "use client"
 
 import Link from "next/link"
-import { useMemo } from "react"
-import {
-  ArrowLeft,
-  ArrowDownLeft,
-  ArrowUpRight,
-  EyeOff,
-  FileQuestion,
-  ShieldCheck,
-} from "lucide-react"
+import { useMemo, type ReactNode } from "react"
+import { EyeOff, FileQuestion, ShieldCheck } from "lucide-react"
 
+import {
+  createCustodyActivityColumns,
+  originEvidenceColumns,
+  transferEvidenceColumns,
+} from "@/components/asset-detail/columns"
+import { AppNavbar } from "@/components/app-navbar"
 import { CommodityThumbnail } from "@/components/commodity-thumbnail"
 import { Badge } from "@/components/ui/badge"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
+import { DataTable } from "@/components/ui/data-table"
 import { Separator } from "@/components/ui/separator"
 import {
   isPrivatePartyView,
@@ -28,29 +36,12 @@ import {
   COMMODITY_META,
   RATING_META,
   STAGE_META,
-  type OriginEvidenceReference,
   type Transfer,
 } from "@/lib/types"
 import { cn, formatTons } from "@/lib/utils"
 
 type AssetDetailViewProps = {
   assetId: string
-}
-
-function formatTransferDate(isoDate: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(isoDate))
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 function transfersVisibleToParty(
@@ -74,6 +65,7 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
   const selectedPartyViewId = useTraceabilityStore(
     (state) => state.selectedPartyViewId
   )
+  const selectPartyView = useTraceabilityStore((state) => state.selectPartyView)
   const isAssetVisibleToSelectedParty = useTraceabilityStore(
     (state) => state.isAssetVisibleToSelectedParty
   )
@@ -107,10 +99,49 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
     () => (id: string) => accounts.find((account) => account.id === id),
     [accounts]
   )
+  const partyTransfers = useMemo(() => {
+    if (!asset) return []
+    return transfersVisibleToParty(
+      relatedTransfers,
+      visibilityPartyId,
+      asset.accountId
+    )
+  }, [asset, relatedTransfers, visibilityPartyId])
+  const evidence = useMemo(
+    () =>
+      partyTransfers.flatMap((transfer) =>
+        (transfer.attachments ?? []).map((attachment) => ({
+          ...attachment,
+          transferId: transfer.id,
+        }))
+      ),
+    [partyTransfers]
+  )
+  const custodyActivityColumns = useMemo(
+    () =>
+      createCustodyActivityColumns({
+        accountById,
+        visibilityPartyId,
+        assetAccountId: asset?.accountId ?? "",
+      }),
+    [accountById, visibilityPartyId, asset?.accountId]
+  )
+
+  const pageShell = (content: ReactNode) => (
+    <div className="flex h-svh w-full flex-col overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+        <AppNavbar
+          selectedPartyViewId={selectedPartyViewId}
+          onSelectPartyView={selectPartyView}
+        />
+        {content}
+      </div>
+    </div>
+  )
 
   if (!asset) {
-    return (
-      <div className="mx-auto flex min-h-svh w-full max-w-3xl flex-col items-center justify-center gap-4 px-6 py-12 text-center">
+    return pageShell(
+      <div className="mx-auto flex min-h-full w-full max-w-4xl flex-col items-center justify-center gap-4 px-6 py-12 text-center">
         <FileQuestion className="size-12 text-muted-foreground/60" />
         <div>
           <h1 className="text-xl font-semibold">Asset not found</h1>
@@ -131,8 +162,8 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
       ? partyViewLabel(selectedPartyView)
       : "This company"
 
-    return (
-      <div className="mx-auto flex min-h-svh w-full max-w-3xl flex-col items-center justify-center gap-4 px-6 py-12 text-center">
+    return pageShell(
+      <div className="mx-auto flex min-h-full w-full max-w-4xl flex-col items-center justify-center gap-4 px-6 py-12 text-center">
         <EyeOff className="size-12 text-muted-foreground/60" />
         <div>
           <h1 className="text-xl font-semibold">Not visible to this party</h1>
@@ -162,43 +193,28 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
   const StageIcon = holdingAccount
     ? STAGE_META[holdingAccount.stageType].icon
     : null
-  const partyTransfers = transfersVisibleToParty(
-    relatedTransfers,
-    visibilityPartyId,
-    asset.accountId
-  )
-  const evidence = partyTransfers.flatMap((transfer) =>
-    (transfer.attachments ?? []).map((attachment) => ({
-      ...attachment,
-      transferId: transfer.id,
-    }))
-  )
   const originEvidence = asset.originEvidence ?? []
   const fingerprint = originFingerprint(asset)
 
-  return (
-    <div className="mx-auto min-h-svh w-full max-w-3xl px-6 py-8 pb-28">
-      <div className="mb-6 flex items-center gap-3">
-        <Button asChild variant="ghost" size="sm" className="-ml-2">
-          <Link href="/">
-            <ArrowLeft className="size-4" />
-            Dashboard
-          </Link>
-        </Button>
+  return pageShell(
+    <div className="mx-auto w-full max-w-4xl px-6 pt-16 pb-28">
+      <div className="mb-10">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href="/">Dashboard</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{commodity.label}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
       </div>
 
-      <div className="mb-6 rounded-lg border border-border/60 bg-muted/40 px-4 py-3 text-sm">
-        <p className="font-medium">
-          Party view: {selectedPartyView ? partyViewLabel(selectedPartyView) : visibilityPartyId}
-        </p>
-        <p className="mt-1 text-muted-foreground">
-          {asset.accountId === visibilityPartyId
-            ? "You can see this lot because it is held at your operational node."
-            : "You can see this lot because your party participated in a related custody transfer."}
-        </p>
-      </div>
-
-      <header className="mb-8 flex gap-4">
+      <header className="mb-12 flex gap-4">
         <CommodityThumbnail
           commodity={asset.commodity}
           certifications={asset.certifications}
@@ -209,30 +225,50 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
             {tokenId(asset.id)}
           </p>
           <h1 className="text-2xl font-semibold">{commodity.label}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {formatTons(asset.quantity)} {asset.unit} · Grade {rating.label}
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
+        </div>
+      </header>
+
+      <section className="mb-8 space-y-3">
+        <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
+          Lot position
+        </h2>
+        <div className="rounded-lg border bg-background p-4 text-sm">
+          <div className="flex items-center justify-between gap-3 py-1.5">
+            <span className="text-muted-foreground">Quantity</span>
+            <span className="font-medium tabular-nums">
+              {formatTons(asset.quantity)} {asset.unit}
+            </span>
+          </div>
+          <Separator className="my-2" />
+          <div className="flex items-center justify-between gap-3 py-1.5">
+            <span className="text-muted-foreground">Grade</span>
             <Badge
-              className={cn(
-                "rounded-md border-none",
-                rating.className
-              )}
+              className={cn("rounded-md border-none", rating.className)}
             >
               Grade {rating.label}
             </Badge>
-            {asset.certifications.map((cert) => (
-              <Badge
-                key={cert}
-                variant="outline"
-                className={CERTIFICATION_META[cert].className}
-              >
-                {CERTIFICATION_META[cert].label}
-              </Badge>
-            ))}
+          </div>
+          <Separator className="my-2" />
+          <div className="flex items-center justify-between gap-3 py-1.5">
+            <span className="text-muted-foreground">Certifications</span>
+            {asset.certifications.length > 0 ? (
+              <div className="flex flex-wrap justify-end gap-1.5">
+                {asset.certifications.map((cert) => (
+                  <Badge
+                    key={cert}
+                    variant="outline"
+                    className={CERTIFICATION_META[cert].className}
+                  >
+                    {CERTIFICATION_META[cert].label}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <span className="text-muted-foreground">Standard batch</span>
+            )}
           </div>
         </div>
-      </header>
+      </section>
 
       <section className="mb-8 space-y-3">
         <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
@@ -296,54 +332,10 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
             for this lot yet.
           </div>
         ) : (
-          <div className="overflow-hidden rounded-lg border bg-background">
-            {partyTransfers.map((transfer) => {
-              const direction =
-                transfer.toAccountId === visibilityPartyId
-                  ? "received"
-                  : transfer.fromAccountId === visibilityPartyId
-                    ? "sent"
-                    : asset.accountId === visibilityPartyId
-                      ? transfer.toAccountId === asset.accountId
-                        ? "received"
-                        : "sent"
-                      : "sent"
-              const DirectionIcon =
-                direction === "sent" ? ArrowUpRight : ArrowDownLeft
-              const counterpartyId =
-                direction === "sent"
-                  ? transfer.toAccountId
-                  : transfer.fromAccountId
-              const counterparty = accountById(counterpartyId)
-
-              return (
-                <div
-                  key={transfer.id}
-                  className="flex gap-3 border-b border-border p-4 last:border-b-0"
-                >
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-                    <DirectionIcon className="size-4 text-muted-foreground" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium">
-                      {direction === "sent" ? "Sent to" : "Received from"}{" "}
-                      {counterparty?.name ?? counterpartyId}
-                    </p>
-                    <p className="mt-0.5 text-sm text-muted-foreground">
-                      {formatTons(transfer.quantity)}t ·{" "}
-                      {formatTransferDate(transfer.occurredAt ?? transfer.createdAt)}
-                    </p>
-                    {transfer.attachments && transfer.attachments.length > 0 ? (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {transfer.attachments.length} supporting document
-                        {transfer.attachments.length === 1 ? "" : "s"}
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+          <DataTable
+            columns={custodyActivityColumns}
+            data={partyTransfers}
+          />
         )}
       </section>
 
@@ -352,26 +344,10 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
           <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
             Origin evidence references
           </h2>
-          <div className="overflow-hidden rounded-lg border bg-background">
-            {originEvidence.map((item: OriginEvidenceReference) => (
-              <div
-                key={item.id}
-                className="border-b border-border p-4 last:border-b-0"
-              >
-                <p className="font-medium">{item.name}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {item.documentType ?? item.mimeType}
-                  {item.issuer ? ` · ${item.issuer}` : ""}
-                  {item.timestamp
-                    ? ` · ${formatTransferDate(item.timestamp)}`
-                    : ""}
-                </p>
-                <p className="mt-2 break-all font-mono text-xs text-muted-foreground select-all">
-                  {item.hash}
-                </p>
-              </div>
-            ))}
-          </div>
+          <DataTable
+            columns={originEvidenceColumns}
+            data={originEvidence}
+          />
         </section>
       ) : null}
 
@@ -384,23 +360,10 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
             No document hashes are bound to visible transfers for this lot.
           </div>
         ) : (
-          <div className="overflow-hidden rounded-lg border bg-background">
-            {evidence.map((attachment) => (
-              <div
-                key={attachment.id}
-                className="border-b border-border p-4 last:border-b-0"
-              >
-                <p className="font-medium">{attachment.name}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {attachment.mimeType} · {formatFileSize(attachment.size)} ·
-                  Transfer {attachment.transferId}
-                </p>
-                <p className="mt-2 break-all font-mono text-xs text-muted-foreground">
-                  {attachment.hash}
-                </p>
-              </div>
-            ))}
-          </div>
+          <DataTable
+            columns={transferEvidenceColumns}
+            data={evidence}
+          />
         )}
       </section>
 
