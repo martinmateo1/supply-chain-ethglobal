@@ -6,16 +6,15 @@ import {
   ArrowLeft,
   ArrowDownLeft,
   ArrowUpRight,
-  EyeOff,
   FileQuestion,
   ShieldCheck,
 } from "lucide-react"
 
+import { AssetCustodyFlowChart } from "@/components/asset-custody-flow-chart"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import {
-  isAssetVisibleToParty,
   originFingerprint,
   tokenId,
   transferMatchesAsset,
@@ -27,7 +26,6 @@ import {
   RATING_META,
   STAGE_META,
   assetImage,
-  type Transfer,
 } from "@/lib/types"
 import { cn, formatTons } from "@/lib/utils"
 
@@ -51,34 +49,15 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-function transfersVisibleToParty(
-  transfers: Transfer[],
-  partyId: string,
-  assetAccountId: string
-): Transfer[] {
-  if (assetAccountId === partyId) return transfers
-
-  return transfers.filter(
-    (transfer) =>
-      transfer.fromAccountId === partyId || transfer.toAccountId === partyId
-  )
-}
 
 export function AssetDetailView({ assetId }: AssetDetailViewProps) {
   const assets = useTraceabilityStore((state) => state.assets)
   const transfers = useTraceabilityStore((state) => state.transfers)
   const accounts = useTraceabilityStore((state) => state.accounts)
-  const selectedAccountId = useTraceabilityStore(
-    (state) => state.selectedAccountId
-  )
 
   const asset = useMemo(
     () => assets.find((item) => item.id === assetId),
     [assets, assetId]
-  )
-  const selectedAccount = useMemo(
-    () => accounts.find((account) => account.id === selectedAccountId),
-    [accounts, selectedAccountId]
   )
   const relatedTransfers = useMemo(() => {
     if (!asset) return []
@@ -90,10 +69,6 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
           new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()
       )
   }, [asset, transfers])
-  const isVisible = useMemo(() => {
-    if (!asset) return false
-    return isAssetVisibleToParty(asset, selectedAccountId, transfers)
-  }, [asset, selectedAccountId, transfers])
 
   const accountById = useMemo(
     () => (id: string) => accounts.find((account) => account.id === id),
@@ -118,37 +93,13 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
     )
   }
 
-  if (!isVisible) {
-    return (
-      <div className="mx-auto flex min-h-svh w-full max-w-3xl flex-col items-center justify-center gap-4 px-6 py-12 text-center">
-        <EyeOff className="size-12 text-muted-foreground/60" />
-        <div>
-          <h1 className="text-xl font-semibold">Not visible to this party</h1>
-          <p className="mt-2 max-w-md text-sm text-muted-foreground">
-            {selectedAccount?.name ?? "This party"} is not authorized to view
-            this lot position. Canton privacy limits visibility to involved
-            custodians and transfer counterparties only.
-          </p>
-        </div>
-        <Button asChild variant="outline">
-          <Link href="/">Back to dashboard</Link>
-        </Button>
-      </div>
-    )
-  }
-
   const holdingAccount = accountById(asset.accountId)
   const commodity = COMMODITY_META[asset.commodity]
   const rating = RATING_META[asset.rating]
   const StageIcon = holdingAccount
     ? STAGE_META[holdingAccount.stageType].icon
     : null
-  const partyTransfers = transfersVisibleToParty(
-    relatedTransfers,
-    selectedAccountId,
-    asset.accountId
-  )
-  const evidence = partyTransfers.flatMap((transfer) =>
+  const evidence = relatedTransfers.flatMap((transfer) =>
     (transfer.attachments ?? []).map((attachment) => ({
       ...attachment,
       transferId: transfer.id,
@@ -157,7 +108,7 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
   const fingerprint = originFingerprint(asset)
 
   return (
-    <div className="mx-auto min-h-svh w-full max-w-3xl px-6 py-8 pb-28">
+    <div className="mx-auto min-h-svh w-full max-w-4xl px-6 py-8 pb-28">
       <div className="mb-6 flex items-center gap-3">
         <Button asChild variant="ghost" size="sm" className="-ml-2">
           <Link href="/">
@@ -165,15 +116,6 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
             Dashboard
           </Link>
         </Button>
-      </div>
-
-      <div className="mb-6 rounded-lg border border-border/60 bg-muted/40 px-4 py-3 text-sm">
-        <p className="font-medium">Party view: {selectedAccount?.name}</p>
-        <p className="mt-1 text-muted-foreground">
-          {asset.accountId === selectedAccountId
-            ? "You can see this lot because it is held at your operational node."
-            : "You can see this lot because your party participated in a related custody transfer."}
-        </p>
       </div>
 
       <header className="mb-8 flex gap-4">
@@ -256,28 +198,25 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
         </div>
       </section>
 
+      <AssetCustodyFlowChart
+        asset={asset}
+        accounts={accounts}
+        transfers={transfers}
+      />
+
       <section className="mb-8 space-y-3">
         <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
           Custody activity
         </h2>
-        {partyTransfers.length === 0 ? (
+        {relatedTransfers.length === 0 ? (
           <div className="rounded-lg border border-dashed bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground">
-            No custody transfers visible to {selectedAccount?.name} for this lot
-            yet.
+            No custody transfers recorded for this lot yet.
           </div>
         ) : (
           <div className="overflow-hidden rounded-lg border bg-background">
-            {partyTransfers.map((transfer) => {
+            {relatedTransfers.map((transfer) => {
               const direction =
-                transfer.toAccountId === selectedAccountId
-                  ? "received"
-                  : transfer.fromAccountId === selectedAccountId
-                    ? "sent"
-                    : asset.accountId === selectedAccountId
-                      ? transfer.toAccountId === asset.accountId
-                        ? "received"
-                        : "sent"
-                      : "sent"
+                transfer.toAccountId === asset.accountId ? "received" : "sent"
               const DirectionIcon =
                 direction === "sent" ? ArrowUpRight : ArrowDownLeft
               const counterpartyId =
@@ -364,8 +303,8 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
               Current node: {holdingAccount?.name ?? asset.accountId}
             </li>
             <li>
-              {partyTransfers.length} visible custody event
-              {partyTransfers.length === 1 ? "" : "s"} for your party
+              {relatedTransfers.length} custody event
+              {relatedTransfers.length === 1 ? "" : "s"} on record
             </li>
             <li>
               {evidence.length} evidence reference
@@ -373,8 +312,8 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
             </li>
           </ul>
           <p className="mt-3 text-xs text-muted-foreground">
-            Full attestation generation will summarize the complete chain when
-            the shipment reaches a receiving port terminal account.
+            Full attestation generation will summarize the complete chain across
+            all custody events once the shipment reaches its destination.
           </p>
         </div>
       </section>
