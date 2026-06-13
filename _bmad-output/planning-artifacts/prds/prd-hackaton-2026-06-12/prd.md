@@ -54,7 +54,7 @@ The MVP is commodity-generic. Coffee beans and cacao are seeded demo examples, b
   Mateo works for a port operator or exporter. He selects a received quantity and generates a custody-chain attestation showing product, quantity, origin metadata, certifications, custody path, split/merge references, and document hashes. He can share the attestation with a buyer or auditor without granting them full access to every private ledger contract.
 
 - **UJ-5. Vera verifies she cannot see unrelated data.**
-  Vera represents a non-involved company in the demo. She switches into her party view and sees no private contracts, holdings, transfer details, documents, or balances for the coffee/cacao custody flow. This journey exists to prove the Canton privacy thesis.
+  Vera represents a non-involved company in the demo. She switches into her Party View and sees no private contracts, holdings, transfer details, documents, or balances for the coffee/cacao custody flow. This journey exists to prove the Canton privacy thesis.
 
 ## 3. Glossary
 
@@ -65,7 +65,7 @@ The MVP is commodity-generic. Coffee beans and cacao are seeded demo examples, b
 - **Evidence Reference** — Off-ledger document metadata, hash, content identifier, credential identifier, or signed JSON reference bound to a Custody Transfer.
 - **Lot Position** — A private ledger position representing a quantity of a Commodity held by an Operational Node, including provenance and certification metadata.
 - **Operational Node** — A production site, transport wallet, storage wallet, or port storage wallet that can hold or move Lot Positions.
-- **Party View** — The UI perspective for a selected Canton party or company role, showing only contracts and data visible to that party.
+- **Party View** — The UI perspective for a selected Canton party or Company role, showing only contracts and data visible to that party.
 - **Provenance Link** — A reference connecting a derived Lot Position to its prior Lot Positions after split, merge, storage, or transfer activity.
 - **Selective Visibility** — The product behavior where only involved or authorized parties can see relevant contracts, balances, transfers, evidence, or attestations.
 
@@ -92,7 +92,7 @@ A producer can create a Lot Position with Commodity, quantity, unit, origin coor
 
 **Consequences:**
 - Created Lot Positions appear in the producer's Party View.
-- Created Lot Positions are not visible to unrelated Company Party Views.
+- Created Lot Positions are not visible to unrelated Party Views.
 - Quantity, origin, quality, and certification fields are available for later Attestation generation.
 
 #### FR-3: Preserve Certification Metadata
