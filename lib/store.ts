@@ -12,9 +12,26 @@ import {
   SEED_ASSETS,
   SEED_TRANSFERS,
 } from "@/lib/data"
-import { isAssetVisibleToParty, transferMatchesAsset } from "@/lib/provenance"
+import {
+  DEFAULT_PARTY_VIEW_ID,
+  partyViewById,
+} from "@/lib/demo/party-views"
+import {
+  isAssetVisibleToParty,
+  isTransferVisibleToParty,
+  transferMatchesAsset,
+} from "@/lib/provenance"
 import { withSeedTransferAssetIds } from "@/lib/seed-transfer-assets"
-import type { Account, Asset, Transfer, TransferAttachment } from "@/lib/types"
+import type {
+  Account,
+  Asset,
+  Certification,
+  CommodityType,
+  OriginEvidenceReference,
+  Rating,
+  Transfer,
+  TransferAttachment,
+} from "@/lib/types"
 
 type NewTransferInput = {
   fromAccountId: string
@@ -24,18 +41,33 @@ type NewTransferInput = {
   attachments?: TransferAttachment[]
 }
 
+export type NewLotInput = {
+  accountId: string
+  commodity: CommodityType
+  quantity: number
+  rating: Rating
+  certifications: Certification[]
+  originIdentifier: string
+  originEvidence?: OriginEvidenceReference[]
+}
+
 type TraceabilityState = {
   accounts: Account[]
   assets: Asset[]
   transfers: Transfer[]
-  selectedAccountId: string
-  selectAccount: (id: string) => void
+  selectedPartyViewId: string
+  selectPartyView: (id: string) => void
   resetData: () => void
   addTransfer: (input: NewTransferInput) => void
+  addLot: (input: NewLotInput) => void
   assetById: (id: string) => Asset | undefined
   accountById: (id: string) => Account | undefined
   relatedTransfersForAsset: (assetId: string) => Transfer[]
   isAssetVisibleToSelectedParty: (assetId: string) => boolean
+  visibleAssetsForPartyView: (partyViewId: string) => Asset[]
+  visibleTransfersSentForPartyView: (partyViewId: string) => Transfer[]
+  visibleTransfersReceivedForPartyView: (partyViewId: string) => Transfer[]
+  partyViewVisibleTotalTons: (partyViewId: string) => number
   assetsByAccount: (accountId: string) => Asset[]
   transfersSentByAccount: (accountId: string) => Transfer[]
   transfersReceivedByAccount: (accountId: string) => Transfer[]
@@ -46,7 +78,7 @@ const initialState = {
   accounts: SEED_ACCOUNTS,
   assets: SEED_ASSETS,
   transfers: SEED_TRANSFERS,
-  selectedAccountId: DEFAULT_SELECTED_ACCOUNT_ID,
+  selectedPartyViewId: DEFAULT_PARTY_VIEW_ID,
 }
 
 type PersistedTraceabilityState = {
@@ -54,17 +86,41 @@ type PersistedTraceabilityState = {
   transfers?: Transfer[]
   holdings?: Asset[]
   selectedAccountId?: string
+  selectedPartyViewId?: string
+}
+
+function sortTransfersNewestFirst(transfers: Transfer[]): Transfer[] {
+  return [...transfers].sort(
+    (a, b) =>
+      new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()
+  )
+}
+
+function transferActorPartyViewId(partyViewId: string): string {
+  const view = partyViewById(partyViewId)
+  return view?.operationalNodeId ?? partyViewId
 }
 
 function normalizeTransfers(transfers: Transfer[] | undefined): Transfer[] {
   return withSeedTransferAssetIds(transfers ?? SEED_TRANSFERS)
 }
 
+function preferNonEmptyOriginEvidence(
+  primary?: OriginEvidenceReference[],
+  fallback?: OriginEvidenceReference[]
+): OriginEvidenceReference[] | undefined {
+  if (primary && primary.length > 0) return primary
+  if (fallback && fallback.length > 0) return fallback
+  return undefined
+}
+
+const PRODUCTION_SITE_NODE_ID = "production-site"
+
 export const useTraceabilityStore = create<TraceabilityState>()(
   persist(
     (set, get) => ({
       ...initialState,
-      selectAccount: (id) => set({ selectedAccountId: id }),
+      selectPartyView: (id) => set({ selectedPartyViewId: id }),
       resetData: () => set(initialState),
       addTransfer: ({
         fromAccountId,
@@ -99,7 +155,18 @@ export const useTraceabilityStore = create<TraceabilityState>()(
         let finalAssets: Asset[]
         if (existingDest) {
           finalAssets = updatedAssets.map((a) =>
-            a.id === existingDest.id ? { ...a, quantity: a.quantity + quantity } : a
+            a.id === existingDest.id
+              ? {
+                  ...a,
+                  quantity: a.quantity + quantity,
+                  originIdentifier:
+                    a.originIdentifier ?? sourceAsset.originIdentifier,
+                  originEvidence: preferNonEmptyOriginEvidence(
+                    a.originEvidence,
+                    sourceAsset.originEvidence
+                  ),
+                }
+              : a
           )
         } else {
           const newAsset: Asset = {
@@ -110,6 +177,12 @@ export const useTraceabilityStore = create<TraceabilityState>()(
             rating: sourceAsset.rating,
             quantity,
             unit: "tons",
+            ...(sourceAsset.originIdentifier
+              ? { originIdentifier: sourceAsset.originIdentifier }
+              : {}),
+            ...(sourceAsset.originEvidence
+              ? { originEvidence: sourceAsset.originEvidence }
+              : {}),
           }
           finalAssets = [...updatedAssets, newAsset]
         }
@@ -129,6 +202,34 @@ export const useTraceabilityStore = create<TraceabilityState>()(
         }
 
         set({ assets: finalAssets, transfers: [...state.transfers, newTransfer] })
+      },
+      addLot: ({
+        accountId,
+        commodity,
+        quantity,
+        rating,
+        certifications,
+        originIdentifier,
+        originEvidence,
+      }) => {
+        if (accountId !== PRODUCTION_SITE_NODE_ID) return
+        if (!Number.isFinite(quantity) || quantity <= 0) return
+
+        const newAsset: Asset = {
+          id: `a${Date.now()}`,
+          accountId,
+          commodity,
+          certifications,
+          rating,
+          quantity,
+          unit: "tons",
+          originIdentifier,
+          ...(originEvidence && originEvidence.length > 0
+            ? { originEvidence }
+            : {}),
+        }
+
+        set((state) => ({ assets: [...state.assets, newAsset] }))
       },
       assetById: (id) => get().assets.find((asset) => asset.id === id),
       accountById: (id) => get().accounts.find((account) => account.id === id),
@@ -150,28 +251,50 @@ export const useTraceabilityStore = create<TraceabilityState>()(
 
         return isAssetVisibleToParty(
           asset,
-          get().selectedAccountId,
+          transferActorPartyViewId(get().selectedPartyViewId),
           get().transfers
         )
       },
+      visibleAssetsForPartyView: (partyViewId) => {
+        const actorId = transferActorPartyViewId(partyViewId)
+        return get().assets.filter((asset) =>
+          isAssetVisibleToParty(asset, actorId, get().transfers)
+        )
+      },
+      visibleTransfersSentForPartyView: (partyViewId) => {
+        const actorId = transferActorPartyViewId(partyViewId)
+        return sortTransfersNewestFirst(
+          get().transfers.filter(
+            (transfer) =>
+              isTransferVisibleToParty(transfer, actorId) &&
+              transfer.fromAccountId === actorId
+          )
+        )
+      },
+      visibleTransfersReceivedForPartyView: (partyViewId) => {
+        const actorId = transferActorPartyViewId(partyViewId)
+        return sortTransfersNewestFirst(
+          get().transfers.filter(
+            (transfer) =>
+              isTransferVisibleToParty(transfer, actorId) &&
+              transfer.toAccountId === actorId
+          )
+        )
+      },
+      partyViewVisibleTotalTons: (partyViewId) =>
+        get()
+          .visibleAssetsForPartyView(partyViewId)
+          .reduce((total, asset) => total + asset.quantity, 0),
       assetsByAccount: (accountId) =>
         get().assets.filter((asset) => asset.accountId === accountId),
       transfersSentByAccount: (accountId) =>
-        get()
-          .transfers.filter((transfer) => transfer.fromAccountId === accountId)
-          .sort(
-            (a, b) =>
-              new Date(b.occurredAt).getTime() -
-              new Date(a.occurredAt).getTime()
-          ),
+        sortTransfersNewestFirst(
+          get().transfers.filter((transfer) => transfer.fromAccountId === accountId)
+        ),
       transfersReceivedByAccount: (accountId) =>
-        get()
-          .transfers.filter((transfer) => transfer.toAccountId === accountId)
-          .sort(
-            (a, b) =>
-              new Date(b.occurredAt).getTime() -
-              new Date(a.occurredAt).getTime()
-          ),
+        sortTransfersNewestFirst(
+          get().transfers.filter((transfer) => transfer.toAccountId === accountId)
+        ),
       accountTotalTons: (accountId) =>
         get()
           .assets.filter((asset) => asset.accountId === accountId)
@@ -179,14 +302,28 @@ export const useTraceabilityStore = create<TraceabilityState>()(
     }),
     {
       name: "hackathon-traceability",
-      version: 8,
+      version: 9,
       storage: createJSONStorage(() => localStorage),
       migrate: (persistedState, version) => {
         const state = persistedState as PersistedTraceabilityState
 
+        if (version < 9) {
+          return {
+            selectedPartyViewId:
+              state.selectedPartyViewId ??
+              state.selectedAccountId ??
+              DEFAULT_PARTY_VIEW_ID,
+            assets: state.assets ?? SEED_ASSETS,
+            transfers: normalizeTransfers(state.transfers),
+          }
+        }
+
         if (version < 8) {
           return {
-            selectedAccountId: state.selectedAccountId ?? DEFAULT_SELECTED_ACCOUNT_ID,
+            selectedPartyViewId:
+              state.selectedPartyViewId ??
+              state.selectedAccountId ??
+              DEFAULT_SELECTED_ACCOUNT_ID,
             assets: state.assets ?? SEED_ASSETS,
             transfers: normalizeTransfers(state.transfers),
           }
@@ -194,7 +331,7 @@ export const useTraceabilityStore = create<TraceabilityState>()(
 
         if (version < 7) {
           return {
-            selectedAccountId: DEFAULT_SELECTED_ACCOUNT_ID,
+            selectedPartyViewId: DEFAULT_PARTY_VIEW_ID,
             assets: SEED_ASSETS,
             transfers: SEED_TRANSFERS,
           }
@@ -202,28 +339,40 @@ export const useTraceabilityStore = create<TraceabilityState>()(
 
         if (version < 2) {
           return {
-            selectedAccountId: state.selectedAccountId,
+            selectedPartyViewId:
+              state.selectedPartyViewId ??
+              state.selectedAccountId ??
+              DEFAULT_PARTY_VIEW_ID,
             assets: SEED_ASSETS,
           }
         }
 
         if (version < 3) {
           return {
-            selectedAccountId: state.selectedAccountId,
+            selectedPartyViewId:
+              state.selectedPartyViewId ??
+              state.selectedAccountId ??
+              DEFAULT_PARTY_VIEW_ID,
             assets: state.assets ?? state.holdings ?? SEED_ASSETS,
           }
         }
 
         if (version < 5) {
           return {
-            selectedAccountId: state.selectedAccountId,
+            selectedPartyViewId:
+              state.selectedPartyViewId ??
+              state.selectedAccountId ??
+              DEFAULT_PARTY_VIEW_ID,
             assets: SEED_ASSETS,
           }
         }
 
         if (version < 6) {
           return {
-            selectedAccountId: state.selectedAccountId,
+            selectedPartyViewId:
+              state.selectedPartyViewId ??
+              state.selectedAccountId ??
+              DEFAULT_PARTY_VIEW_ID,
             assets: state.assets ?? SEED_ASSETS,
             transfers: SEED_TRANSFERS,
           }
@@ -231,13 +380,17 @@ export const useTraceabilityStore = create<TraceabilityState>()(
 
         return {
           ...state,
+          selectedPartyViewId:
+            state.selectedPartyViewId ??
+            state.selectedAccountId ??
+            DEFAULT_PARTY_VIEW_ID,
           transfers: normalizeTransfers(state.transfers),
         }
       },
       partialize: (state) => ({
         assets: state.assets,
         transfers: state.transfers,
-        selectedAccountId: state.selectedAccountId,
+        selectedPartyViewId: state.selectedPartyViewId,
       }),
       merge: (persisted, current) => {
         const persistedState = persisted as PersistedTraceabilityState | undefined
@@ -246,8 +399,10 @@ export const useTraceabilityStore = create<TraceabilityState>()(
           ...current,
           assets: persistedState?.assets ?? current.assets,
           transfers: normalizeTransfers(persistedState?.transfers),
-          selectedAccountId:
-            persistedState?.selectedAccountId ?? current.selectedAccountId,
+          selectedPartyViewId:
+            persistedState?.selectedPartyViewId ??
+            persistedState?.selectedAccountId ??
+            current.selectedPartyViewId,
         }
       },
     }

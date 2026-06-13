@@ -4,3 +4,9 @@ node_modules/
 
 # Local Cursor MCP config (may contain tokens)
 .cursor/mcp.json
+.next/
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

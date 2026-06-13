@@ -40,6 +40,8 @@ export type Asset = {
   rating: Rating
   quantity: number
   unit: "tons"
+  originIdentifier?: string
+  originEvidence?: OriginEvidenceReference[]
 }
 
 export type TransferAttachment = {
@@ -48,6 +50,18 @@ export type TransferAttachment = {
   mimeType: string
   size: number
   hash: string
+}
+
+/** Off-ledger origin evidence bound by hash only (MVP demo state). */
+export type OriginEvidenceReference = {
+  id: string
+  name: string
+  mimeType: string
+  size: number
+  hash: string
+  documentType?: string
+  issuer?: string
+  timestamp?: string
 }
 
 export type Transfer = {

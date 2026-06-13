@@ -1,12 +1,12 @@
 import { ArrowDownLeft, ArrowUpRight, Paperclip } from "lucide-react"
 
+import { CommodityThumbnail } from "@/components/commodity-thumbnail"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   CERTIFICATION_META,
   COMMODITY_META,
   RATING_META,
-  assetImage,
   type Transfer,
 } from "@/lib/types"
 import { cn, formatTons } from "@/lib/utils"
@@ -47,12 +47,12 @@ export function TransferRow({
           className="absolute -right-0.5 -bottom-0.5 overflow-hidden rounded-md border border-border bg-background"
           aria-hidden
         >
-          <img
-            src={assetImage(transfer)}
-            alt={commodity.label}
-            width={20}
-            height={20}
-            className="size-5 object-cover"
+          <CommodityThumbnail
+            commodity={transfer.commodity}
+            certifications={transfer.certifications}
+            size={20}
+            className="rounded-md border-0"
+            imageClassName="rounded-md"
           />
         </span>
       </div>

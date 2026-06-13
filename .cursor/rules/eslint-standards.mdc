@@ -1,0 +1,22 @@
+---
+description: ESLint hygiene — keep pnpm lint warning-free
+alwaysApply: true
+---
+
+# ESLint Standards
+
+Run `pnpm lint` before marking work complete. The project should report **zero warnings**.
+
+## Unused variables
+
+- Remove unused imports and locals.
+- For intentional placeholders (stubs, interface implementations), prefix with `_` (e.g. `_input`, `_ledgerTransfer`). ESLint ignores `_`-prefixed names via `eslint.config.mjs`.
+
+## Images
+
+- Use `next/image` (`import Image from "next/image"`) for commodity thumbnails and UI images — not raw `<img>`.
+- Provide explicit `width` and `height` (or `fill` with a sized parent).
+
+## Imports
+
+- Do not leave unused font, icon, or type imports in committed code.

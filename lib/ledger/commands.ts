@@ -5,6 +5,10 @@ export type CreateLotCommand = {
   commodity: "coffee" | "cacao"
   amount: string
   unit: string
+  originIdentifier: string
+  qualityGrade: "A" | "B" | "C"
+  certifications: ("non-gmo" | "deforestation-free")[]
+  originEvidenceHashes?: string[]
 }
 
 export type InitiateTransferCommand = {

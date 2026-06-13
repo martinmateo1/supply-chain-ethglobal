@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "generate:daml-types": "tsx scripts/generate-daml-types.ts",
     "ledger:attempt-double-spend": "tsx scripts/attempt-double-spend.ts",
-    "ledger:verify-demo-flow": "tsx scripts/verify-demo-flow.ts"
+    "ledger:verify-demo-flow": "tsx scripts/verify-demo-flow.ts",
+    "verify:party-visibility": "tsx scripts/verify-party-visibility.ts"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

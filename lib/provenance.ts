@@ -1,4 +1,15 @@
+import {
+  NON_INVOLVED_PARTY_VIEW_ID,
+  VERIFIER_PARTY_VIEW_ID,
+} from "@/lib/demo/party-views"
 import { assetKey, certificationKey, type Asset, type Transfer } from "@/lib/types"
+
+export function isPrivatePartyView(partyViewId: string): boolean {
+  return (
+    partyViewId === NON_INVOLVED_PARTY_VIEW_ID ||
+    partyViewId === VERIFIER_PARTY_VIEW_ID
+  )
+}
 
 export function tokenId(assetId: string): string {
   const suffix = assetId.replace(/^a/, "").slice(-4).padStart(4, "0")
@@ -44,6 +55,7 @@ export function isAssetVisibleToParty(
   partyId: string,
   transfers: Transfer[]
 ): boolean {
+  if (isPrivatePartyView(partyId)) return false
   if (asset.accountId === partyId) return true
 
   return transfers.some(
@@ -51,4 +63,24 @@ export function isAssetVisibleToParty(
       transferMatchesAsset(transfer, asset) &&
       (transfer.fromAccountId === partyId || transfer.toAccountId === partyId)
   )
+}
+
+export function isTransferVisibleToParty(
+  transfer: Transfer,
+  partyViewId: string
+): boolean {
+  if (isPrivatePartyView(partyViewId)) return false
+  return (
+    transfer.fromAccountId === partyViewId ||
+    transfer.toAccountId === partyViewId
+  )
+}
+
+export function visibleEvidenceCountForParty(
+  partyViewId: string,
+  transfers: Transfer[]
+): number {
+  return transfers
+    .filter((transfer) => isTransferVisibleToParty(transfer, partyViewId))
+    .reduce((count, transfer) => count + (transfer.attachments?.length ?? 0), 0)
 }

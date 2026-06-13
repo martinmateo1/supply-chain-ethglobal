@@ -1,6 +1,10 @@
+---
+baseline_commit: 679dea508f4bf16f4e54fdb200a6de8c9245e1b5
+---
+
 # Story 1.1: Party View Shell and Privacy-Aware Dashboard
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -20,17 +24,17 @@ so that I can show that each company sees only its own relevant commodity holdin
 
 ## Tasks / Subtasks
 
-- [ ] Replace account-centric wording with Party View language where it is user-facing. (AC: 1, 4, 7)
-  - [ ] Update `components/traceability-view.tsx` selector copy to include company role, operational node, and visible total.
-  - [ ] Preserve the fixed selector behavior while side panels are open.
-- [ ] Add deterministic Party View metadata and visibility matrix. (AC: 2, 3, 6)
-  - [ ] Extend or split `lib/data.ts` into `lib/demo/companies.ts`, `lib/demo/operational-nodes.ts`, and `lib/demo/party-views.ts` if useful.
-  - [ ] Add a non-involved company fixture even if Story 1.2 handles the strong empty state.
-- [ ] Make holdings and history Party View-aware. (AC: 2, 4, 5, 6)
-  - [ ] Review `lib/provenance.ts` and `lib/store.ts`; fix any logic that shows records because of commodity/certification matching without explicit party entitlement.
-  - [ ] Keep Zustand state limited to selected Party View and demo data until the ledger gateway replaces it.
-- [ ] Add dashboard privacy explanation. (AC: 7)
-  - [ ] Add a compact callout explaining that Canton visibility is party-based, not a missing-data state.
+- [x] Replace account-centric wording with Party View language where it is user-facing. (AC: 1, 4, 7)
+  - [x] Update `components/traceability-view.tsx` selector copy to include company role, operational node, and visible total.
+  - [x] Preserve the fixed selector behavior while side panels are open.
+- [x] Add deterministic Party View metadata and visibility matrix. (AC: 2, 3, 6)
+  - [x] Extend or split `lib/data.ts` into `lib/demo/companies.ts`, `lib/demo/operational-nodes.ts`, and `lib/demo/party-views.ts` if useful.
+  - [x] Add a non-involved company fixture even if Story 1.2 handles the strong empty state.
+- [x] Make holdings and history Party View-aware. (AC: 2, 4, 5, 6)
+  - [x] Review `lib/provenance.ts` and `lib/store.ts`; fix any logic that shows records because of commodity/certification matching without explicit party entitlement.
+  - [x] Keep Zustand state limited to selected Party View and demo data until the ledger gateway replaces it.
+- [x] Add dashboard privacy explanation. (AC: 7)
+  - [x] Add a compact callout explaining that Canton visibility is party-based, not a missing-data state.
 
 ## Dev Notes
 
@@ -69,10 +73,33 @@ so that I can show that each company sees only its own relevant commodity holdin
 
 ### Agent Model Used
 
-TBD
+Composer
 
 ### Debug Log References
 
+- `pnpm typecheck` — pass
+- `pnpm lint` — pass (zero warnings)
+- `pnpm verify:party-visibility` — pass
+
 ### Completion Notes List
 
+- Party View shell, selector, privacy callout, and visibility matrix were largely delivered in Story 1.2; this story completion adds glossary tab labels (Lot positions / Custody history), sr-only role+node labels in selector, and demo stepper integration from Story 1.5.
+- Verified holdings/history filtering via `visibleAssetsForPartyView` and `isTransferVisibleToParty` against `EXPECTED_VISIBILITY_MATRIX`.
+
 ### File List
+
+- `components/traceability-view.tsx`
+- `lib/demo/party-views.ts`
+- `lib/demo/companies.ts`
+- `lib/demo/operational-nodes.ts`
+- `lib/demo/visibility-matrix.ts`
+- `lib/provenance.ts`
+- `lib/store.ts`
+- `components/privacy-callout.tsx`
+- `components/assets-panel.tsx`
+- `components/history-panel.tsx`
+- `components/transfer-row.tsx`
+
+### Change Log
+
+- 2026-06-13: Story 1.1 marked complete — Party View shell, visibility matrix, glossary-aligned dashboard tabs, privacy callout verified.

@@ -1,6 +1,10 @@
+---
+baseline_commit: 679dea508f4bf16f4e54fdb200a6de8c9245e1b5
+---
+
 # Story 1.2: Non-Involved Company Privacy Proof
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -20,18 +24,18 @@ so that I can prove unrelated parties cannot see private commodity holdings, cus
 
 ## Tasks / Subtasks
 
-- [ ] Add the non-involved Party View fixture. (AC: 1, 5)
-  - [ ] Add a company/party with no entitlement to route holdings, transfers, evidence, or attestations.
-  - [ ] Ensure selector totals show zero for the custody route and do not leak aggregate private quantities.
-- [ ] Replace generic empty states for the non-involved party. (AC: 2, 3, 7)
-  - [ ] Update `components/assets-panel.tsx` with a privacy-proof empty state.
-  - [ ] Update `components/history-panel.tsx` with a privacy-proof empty state.
-  - [ ] Use operator-language copy: "No private contracts are visible to this company."
-- [ ] Harden asset detail privacy gating. (AC: 4)
-  - [ ] Review `components/asset-detail-view.tsx` unauthorized state and align copy with the privacy proof.
-  - [ ] Ensure the route does not show hidden transfer/evidence details before or after the blocked state renders.
-- [ ] Prepare attestation/verifier privacy constraints for later stories. (AC: 6)
-  - [ ] Document or stub the allowed verifier-field boundary so future attestation work does not backfill private dashboard state.
+- [x] Add the non-involved Party View fixture. (AC: 1, 5)
+  - [x] Add a company/party with no entitlement to route holdings, transfers, evidence, or attestations.
+  - [x] Ensure selector totals show zero for the custody route and do not leak aggregate private quantities.
+- [x] Replace generic empty states for the non-involved party. (AC: 2, 3, 7)
+  - [x] Update `components/assets-panel.tsx` with a privacy-proof empty state.
+  - [x] Update `components/history-panel.tsx` with a privacy-proof empty state.
+  - [x] Use operator-language copy: "No private contracts are visible to this company."
+- [x] Harden asset detail privacy gating. (AC: 4)
+  - [x] Review `components/asset-detail-view.tsx` unauthorized state and align copy with the privacy proof.
+  - [x] Ensure the route does not show hidden transfer/evidence details before or after the blocked state renders.
+- [x] Prepare attestation/verifier privacy constraints for later stories. (AC: 6)
+  - [x] Document or stub the allowed verifier-field boundary so future attestation work does not backfill private dashboard state.
 
 ## Dev Notes
 
@@ -72,10 +76,34 @@ so that I can prove unrelated parties cannot see private commodity holdings, cus
 
 ### Agent Model Used
 
-TBD
+Composer
 
 ### Debug Log References
 
+- `pnpm typecheck` — pass
+- `pnpm lint` — pass (pre-existing warnings only)
+- `pnpm verify:party-visibility` — pass; non-involved-company holdings=0 sent=0 received=0 evidence=0
+
 ### Completion Notes List
 
+- Wired dashboard to `DEMO_PARTY_VIEWS` with Atlas Commodities Trading labeled `(unrelated)` in the Party View selector and `0t` visible totals.
+- Added `isPrivatePartyView`, `isTransferVisibleToParty`, and `visibleEvidenceCountForParty` to `lib/provenance.ts`; store now filters holdings/history by party entitlement via `selectedPartyViewId`.
+- Privacy-proof empty states in Assets/History panels use operator copy and explain expected Canton selective visibility.
+- Sharpened asset detail blocked state; visibility gate runs before any transfer/evidence rendering.
+- Added `lib/demo/verifier-field-boundary.ts` stub for Epic 4 attestation boundaries.
+
 ### File List
+
+- `components/assets-panel.tsx`
+- `components/history-panel.tsx`
+- `components/traceability-view.tsx`
+- `components/asset-detail-view.tsx`
+- `lib/provenance.ts`
+- `lib/store.ts`
+- `lib/demo/verifier-field-boundary.ts`
+- `package.json`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+### Change Log
+
+- 2026-06-13: Implemented non-involved company privacy proof — Party View selector, privacy empty states, asset detail gating, verifier field boundary stub, and party-aware store filtering.

@@ -86,15 +86,15 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
   if (submitted) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold">Transfer Assets</h2>
+        <div className="flex items-start justify-between gap-3">
           <button
             onClick={onClose}
-            className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-label="Close panel"
           >
             <X className="size-4" />
           </button>
+          <h2 className="flex-1 text-base font-semibold">Transfer custody</h2>
         </div>
 
         <div className="flex flex-col items-center gap-4 py-8 text-center">
@@ -102,7 +102,7 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
             <ArrowLeftRight className="size-5 text-primary" />
           </div>
           <div>
-            <p className="font-semibold">Transfer confirmed</p>
+            <p className="font-semibold">Custody transfer confirmed</p>
             <p className="mt-1 text-sm text-muted-foreground">
               {formatTons(quantity)}t has been transferred successfully.
               {attachments.length > 0
@@ -122,12 +122,6 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-base font-semibold">Transfer Assets</h2>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Send assets from your current account.
-          </p>
-        </div>
         <button
           onClick={onClose}
           className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -135,12 +129,18 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
         >
           <X className="size-4" />
         </button>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-base font-semibold">Transfer custody</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Initiate a custody transfer from your operational node.
+          </p>
+        </div>
       </div>
 
       <div className="space-y-5">
         {fromAccount ? (
           <div className="space-y-1.5">
-            <Label>From Account</Label>
+            <Label>From operational node</Label>
             <div className="flex h-9 w-full items-center gap-2 rounded-md border border-input bg-muted/40 px-3 text-sm">
               {(() => {
                 const FromIcon = STAGE_META[fromAccount.stageType].icon
@@ -159,7 +159,7 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
         ) : null}
 
         <div className="space-y-1.5">
-          <Label htmlFor="asset-select">Asset</Label>
+          <Label htmlFor="asset-select">Lot position</Label>
           <Select
             value={selectedAssetId}
             onValueChange={(id) => {
@@ -172,8 +172,8 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
               <SelectValue
                 placeholder={
                   fromAssets.length === 0
-                    ? "No assets in this account"
-                    : "Select asset"
+                    ? "No lot positions at this node"
+                    : "Select lot position"
                 }
               />
             </SelectTrigger>
@@ -214,10 +214,10 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="to-account">To Account</Label>
+          <Label htmlFor="to-account">To operational node</Label>
           <Select value={toAccountId} onValueChange={setToAccountId}>
             <SelectTrigger id="to-account" className="w-full">
-              <SelectValue placeholder="Select account" />
+              <SelectValue placeholder="Select operational node" />
             </SelectTrigger>
             <SelectContent position="popper">
               {toAccounts.map((account) => (

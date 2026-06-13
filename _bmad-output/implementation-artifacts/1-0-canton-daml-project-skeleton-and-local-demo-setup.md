@@ -4,7 +4,7 @@ baseline_commit: 1defd8af1a6cabbcf8d5cad0cd60349aa2e5cb80
 
 # Story 1.0: Canton/Daml Project Skeleton and Local Demo Setup
 
-Status: review
+Status: done
 
 ## Story
 
