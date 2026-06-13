@@ -50,7 +50,12 @@ export type TransferAttachment = {
   mimeType: string
   size: number
   hash: string
+  documentType?: string
+  issuer?: string
+  timestamp?: string
 }
+
+export type TransferStatus = "pending" | "accepted" | "rejected" | "cancelled"
 
 /** Off-ledger origin evidence bound by hash only (MVP demo state). */
 export type OriginEvidenceReference = {
@@ -74,7 +79,10 @@ export type Transfer = {
   rating: Rating
   quantity: number
   unit: "tons"
-  occurredAt: string
+  status: TransferStatus
+  createdAt: string
+  occurredAt?: string
+  sourceProvenanceRef?: string
   attachments?: TransferAttachment[]
 }
 

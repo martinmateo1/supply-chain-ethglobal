@@ -1,14 +1,28 @@
+"use client"
+
 import { EyeOff, History } from "lucide-react"
 
 import { TransferRow } from "@/components/transfer-row"
 import { ItemGroup } from "@/components/ui/item"
 import type { Transfer } from "@/lib/types"
 
+type TransferActionState = {
+  transferId: string
+  kind: "accept" | "reject"
+} | null
+
 type HistoryPanelProps = {
   sent: Transfer[]
   received: Transfer[]
+  pendingInbound: Transfer[]
+  pendingOutbound: Transfer[]
   accountNameById: (id: string) => string
   privacyProof?: boolean
+  onAcceptTransfer?: (transferId: string) => void
+  onRejectTransfer?: (transferId: string) => void
+  actionState?: TransferActionState
+  error?: string | null
+  successMessage?: string | null
 }
 
 function TransferSection({
@@ -16,36 +30,58 @@ function TransferSection({
   transfers,
   direction,
   accountNameById,
+  showActions = false,
+  onAcceptTransfer,
+  onRejectTransfer,
+  actionState = null,
+  emptyMessage,
 }: {
   title: string
   transfers: Transfer[]
   direction: "sent" | "received"
   accountNameById: (id: string) => string
+  showActions?: boolean
+  onAcceptTransfer?: (transferId: string) => void
+  onRejectTransfer?: (transferId: string) => void
+  actionState?: TransferActionState
+  emptyMessage?: string
 }) {
-  if (transfers.length === 0) {
+  if (transfers.length === 0 && !emptyMessage) {
     return null
   }
 
   return (
     <div className="space-y-3">
       <p className="text-sm font-medium text-muted-foreground">
-        {title} &middot; {transfers.length} transfer
-        {transfers.length === 1 ? "" : "s"}
+        {title}
+        {transfers.length > 0
+          ? ` · ${transfers.length} transfer${transfers.length === 1 ? "" : "s"}`
+          : null}
       </p>
-      <ItemGroup className="gap-0 overflow-hidden rounded-lg bg-background">
-        {transfers.map((transfer) => (
-          <TransferRow
-            key={transfer.id}
-            transfer={transfer}
-            direction={direction}
-            counterpartyName={accountNameById(
-              direction === "sent"
-                ? transfer.toAccountId
-                : transfer.fromAccountId
-            )}
-          />
-        ))}
-      </ItemGroup>
+      {transfers.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-border bg-background px-4 py-3 text-sm text-muted-foreground">
+          {emptyMessage}
+        </p>
+      ) : (
+        <ItemGroup className="gap-0 overflow-hidden rounded-lg bg-background">
+          {transfers.map((transfer) => (
+            <TransferRow
+              key={transfer.id}
+              transfer={transfer}
+              direction={direction}
+              counterpartyName={accountNameById(
+                direction === "sent"
+                  ? transfer.toAccountId
+                  : transfer.fromAccountId
+              )}
+              showActions={showActions}
+              onAccept={onAcceptTransfer}
+              onReject={onRejectTransfer}
+              actionState={actionState}
+            />
+          ))}
+        </ItemGroup>
+      )}
     </div>
   )
 }
@@ -53,10 +89,22 @@ function TransferSection({
 export function HistoryPanel({
   sent,
   received,
+  pendingInbound,
+  pendingOutbound,
   accountNameById,
   privacyProof = false,
+  onAcceptTransfer,
+  onRejectTransfer,
+  actionState = null,
+  error = null,
+  successMessage = null,
 }: HistoryPanelProps) {
-  const hasHistory = sent.length > 0 || received.length > 0
+  const hasHistory =
+    sent.length > 0 ||
+    received.length > 0 ||
+    pendingInbound.length > 0 ||
+    pendingOutbound.length > 0 ||
+    !privacyProof
 
   return (
     <div className="flex flex-col">
@@ -84,6 +132,35 @@ export function HistoryPanel({
         </div>
       ) : (
         <div className="space-y-6">
+          {error ? (
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
+          ) : null}
+          {successMessage ? (
+            <p className="text-sm text-emerald-800 dark:text-emerald-300" role="status">
+              {successMessage}
+            </p>
+          ) : null}
+          {!privacyProof ? (
+            <TransferSection
+              title="Pending inbound"
+              transfers={pendingInbound}
+              direction="received"
+              accountNameById={accountNameById}
+              showActions
+              onAcceptTransfer={onAcceptTransfer}
+              onRejectTransfer={onRejectTransfer}
+              actionState={actionState}
+              emptyMessage="No transfers awaiting your decision."
+            />
+          ) : null}
+          <TransferSection
+            title="Pending outbound"
+            transfers={pendingOutbound}
+            direction="sent"
+            accountNameById={accountNameById}
+          />
           <TransferSection
             title="Sent"
             transfers={sent}

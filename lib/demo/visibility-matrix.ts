@@ -37,12 +37,14 @@ export function snapshotPartyVisibility(
   const visibleTransfersSent = transfers.filter(
     (transfer) =>
       isTransferVisibleToParty(transfer, partyViewId) &&
-      transfer.fromAccountId === partyViewId
+      transfer.fromAccountId === partyViewId &&
+      transfer.status !== "pending"
   )
   const visibleTransfersReceived = transfers.filter(
     (transfer) =>
       isTransferVisibleToParty(transfer, partyViewId) &&
-      transfer.toAccountId === partyViewId
+      transfer.toAccountId === partyViewId &&
+      transfer.status !== "pending"
   )
 
   return {

@@ -60,6 +60,7 @@ export function isAssetVisibleToParty(
 
   return transfers.some(
     (transfer) =>
+      transfer.status === "accepted" &&
       transferMatchesAsset(transfer, asset) &&
       (transfer.fromAccountId === partyId || transfer.toAccountId === partyId)
   )

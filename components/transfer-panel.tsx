@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { useCustodyGateway } from "@/hooks/use-custody-gateway"
 import { useTraceabilityStore } from "@/lib/store"
 import {
   COMMODITY_META,
@@ -42,7 +43,11 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
   const accounts = useTraceabilityStore((state) => state.accounts)
   const assetsByAccount = useTraceabilityStore((state) => state.assetsByAccount)
   const accountTotalTons = useTraceabilityStore((state) => state.accountTotalTons)
-  const addTransfer = useTraceabilityStore((state) => state.addTransfer)
+  const availableQuantityForAsset = useTraceabilityStore(
+    (state) => state.availableQuantityForAsset
+  )
+
+  const { initiateTransfer, isSubmitting, error, clearError } = useCustodyGateway()
 
   const fromAccount = accounts.find((account) => account.id === fromAccountId)
   const [toAccountId, setToAccountId] = useState("")
@@ -50,6 +55,7 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
   const [quantityStr, setQuantityStr] = useState("")
   const [attachments, setAttachments] = useState<TransferAttachment[]>([])
   const [submitted, setSubmitted] = useState(false)
+  const [submittedQuantity, setSubmittedQuantity] = useState(0)
 
   const fromAssets = useMemo(
     () => assetsByAccount(fromAccountId),
@@ -59,11 +65,17 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
   const selectedAsset = fromAssets.find((a) => a.id === selectedAssetId)
   const toAccount = accounts.find((a) => a.id === toAccountId)
   const quantity = parseFloat(quantityStr) || 0
-  const maxQuantity = selectedAsset?.quantity ?? 0
+  const maxQuantity = selectedAssetId
+    ? availableQuantityForAsset(selectedAssetId)
+    : 0
   const isQuantityValid = quantity > 0 && quantity <= maxQuantity
   const toAccounts = accounts.filter((a) => a.id !== fromAccountId)
   const canConfirm =
-    !!fromAccountId && !!toAccountId && !!selectedAssetId && isQuantityValid
+    !!fromAccountId &&
+    !!toAccountId &&
+    !!selectedAssetId &&
+    isQuantityValid &&
+    !isSubmitting
 
   const provenanceHash = selectedAsset
     ? deterministicHash(
@@ -71,16 +83,22 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
       )
     : null
 
-  function handleConfirm() {
+  async function handleConfirm() {
     if (!canConfirm) return
-    addTransfer({
+    clearError()
+
+    const result = await initiateTransfer({
       fromAccountId,
       toAccountId,
       assetId: selectedAssetId,
       quantity,
       attachments,
     })
-    setSubmitted(true)
+
+    if (result.ok) {
+      setSubmittedQuantity(quantity)
+      setSubmitted(true)
+    }
   }
 
   if (submitted) {
@@ -102,11 +120,12 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
             <ArrowLeftRight className="size-5 text-primary" />
           </div>
           <div>
-            <p className="font-semibold">Custody transfer confirmed</p>
+            <p className="font-semibold">Custody transfer requested</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {formatTons(quantity)}t has been transferred successfully.
+              {formatTons(submittedQuantity)}t is pending acceptance at the
+              destination operational node.
               {attachments.length > 0
-                ? ` ${attachments.length} supporting document${attachments.length === 1 ? "" : "s"} attached.`
+                ? ` ${attachments.length} evidence reference${attachments.length === 1 ? "" : "s"} bound to this handoff.`
                 : ""}
             </p>
           </div>
@@ -120,7 +139,6 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <button
           onClick={onClose}
@@ -165,6 +183,7 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
             onValueChange={(id) => {
               setSelectedAssetId(id)
               setQuantityStr("")
+              clearError()
             }}
             disabled={fromAssets.length === 0}
           >
@@ -197,7 +216,10 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
               max={maxQuantity}
               step={50}
               value={quantityStr}
-              onChange={(e) => setQuantityStr(e.target.value)}
+              onChange={(e) => {
+                setQuantityStr(e.target.value)
+                clearError()
+              }}
               disabled={!selectedAssetId}
               placeholder="0"
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 pr-12 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -208,7 +230,10 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
           </div>
           {selectedAsset && (
             <p className="text-xs text-muted-foreground">
-              Available: {formatTons(selectedAsset.quantity)}t
+              Available: {formatTons(maxQuantity)}t
+              {maxQuantity < selectedAsset.quantity
+                ? ` (${formatTons(selectedAsset.quantity - maxQuantity)}t locked by pending transfers)`
+                : null}
             </p>
           )}
         </div>
@@ -287,7 +312,7 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
           <Separator className="my-1" />
 
           <p className="py-1.5 text-xs leading-relaxed text-muted-foreground">
-            This transfer creates a permanent, tamper-proof audit trail.
+            Custody moves only after the destination party accepts this transfer.
           </p>
           <Separator className="my-1" />
 
@@ -307,8 +332,18 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
           </div>
         </div>
 
-        <Button className="w-full" disabled={!canConfirm} onClick={handleConfirm}>
-          Confirm Transfer
+        {error ? (
+          <p className="text-sm text-destructive" role="alert">
+            {error}
+          </p>
+        ) : null}
+
+        <Button
+          className="w-full"
+          disabled={!canConfirm}
+          onClick={() => void handleConfirm()}
+        >
+          {isSubmitting ? "Submitting…" : "Request custody transfer"}
         </Button>
       </div>
     </div>

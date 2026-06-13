@@ -4,6 +4,7 @@ import type {
   Certification,
   CommodityType,
   Rating,
+  Transfer,
 } from "@/lib/types"
 import { withSeedTransferAssetIds } from "@/lib/seed-transfer-assets"
 
@@ -110,8 +111,21 @@ function buildSeedAssets(): Asset[] {
 
 export const SEED_ASSETS = buildSeedAssets()
 
+function seedTransfer(
+  transfer: Omit<Transfer, "status" | "createdAt" | "occurredAt"> & {
+    occurredAt: string
+  }
+): Transfer {
+  return {
+    ...transfer,
+    status: "accepted",
+    createdAt: transfer.occurredAt,
+    occurredAt: transfer.occurredAt,
+  }
+}
+
 export const SEED_TRANSFERS = withSeedTransferAssetIds([
-  {
+  seedTransfer({
     id: "t1",
     fromAccountId: "production-site",
     toAccountId: "truck-transport",
@@ -130,8 +144,8 @@ export const SEED_TRANSFERS = withSeedTransferAssetIds([
         hash: "0x8f14e45fceea167a5a36dedd4bea2543cf233c5390bbc13e57da6b5305d7c7e",
       },
     ],
-  },
-  {
+  }),
+  seedTransfer({
     id: "t2",
     fromAccountId: "truck-transport",
     toAccountId: "silo",
@@ -157,8 +171,8 @@ export const SEED_TRANSFERS = withSeedTransferAssetIds([
         hash: "0xef2d127de37b942baad06145e54baf7a52695a86",
       },
     ],
-  },
-  {
+  }),
+  seedTransfer({
     id: "t3",
     fromAccountId: "production-site",
     toAccountId: "truck-transport",
@@ -168,8 +182,8 @@ export const SEED_TRANSFERS = withSeedTransferAssetIds([
     quantity: 8_200,
     unit: "tons",
     occurredAt: "2026-06-09T09:15:00.000Z",
-  },
-  {
+  }),
+  seedTransfer({
     id: "t4",
     fromAccountId: "silo",
     toAccountId: "railway-transport",
@@ -179,8 +193,8 @@ export const SEED_TRANSFERS = withSeedTransferAssetIds([
     quantity: 15_000,
     unit: "tons",
     occurredAt: "2026-06-08T11:00:00.000Z",
-  },
-  {
+  }),
+  seedTransfer({
     id: "t5",
     fromAccountId: "railway-transport",
     toAccountId: "origin-port",
@@ -190,8 +204,8 @@ export const SEED_TRANSFERS = withSeedTransferAssetIds([
     quantity: 15_000,
     unit: "tons",
     occurredAt: "2026-06-08T16:20:00.000Z",
-  },
-  {
+  }),
+  seedTransfer({
     id: "t6",
     fromAccountId: "origin-port",
     toAccountId: "ship",
@@ -201,8 +215,8 @@ export const SEED_TRANSFERS = withSeedTransferAssetIds([
     quantity: 22_400,
     unit: "tons",
     occurredAt: "2026-06-07T08:30:00.000Z",
-  },
-  {
+  }),
+  seedTransfer({
     id: "t7",
     fromAccountId: "ship",
     toAccountId: "destination-port",
@@ -212,8 +226,8 @@ export const SEED_TRANSFERS = withSeedTransferAssetIds([
     quantity: 22_400,
     unit: "tons",
     occurredAt: "2026-06-07T13:10:00.000Z",
-  },
-  {
+  }),
+  seedTransfer({
     id: "t8",
     fromAccountId: "silo",
     toAccountId: "railway-transport",
@@ -223,7 +237,7 @@ export const SEED_TRANSFERS = withSeedTransferAssetIds([
     quantity: 6_750,
     unit: "tons",
     occurredAt: "2026-06-06T10:45:00.000Z",
-  },
+  }),
 ])
 
 export const DEFAULT_SELECTED_ACCOUNT_ID = SEED_ACCOUNTS[0]?.id ?? "production-site"

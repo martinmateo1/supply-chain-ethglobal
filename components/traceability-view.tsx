@@ -2,7 +2,6 @@
 
 import { ArrowLeftRight, PackagePlus } from "lucide-react"
 import { useState } from "react"
-
 import { AssetsPanel } from "@/components/assets-panel"
 import { CreateLotPanel } from "@/components/create-lot-panel"
 import { DemoStepper } from "@/components/demo-stepper"
@@ -20,6 +19,7 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion"
+import { useCustodyGateway } from "@/hooks/use-custody-gateway"
 import {
   DEMO_PARTY_VIEWS,
   isRoutePartyView,
@@ -53,6 +53,21 @@ export function TraceabilityView() {
   const visibleTransfersReceivedForPartyView = useTraceabilityStore(
     (state) => state.visibleTransfersReceivedForPartyView
   )
+  const visiblePendingInboundForPartyView = useTraceabilityStore(
+    (state) => state.visiblePendingInboundForPartyView
+  )
+  const visiblePendingOutboundForPartyView = useTraceabilityStore(
+    (state) => state.visiblePendingOutboundForPartyView
+  )
+
+  const { acceptTransfer, rejectTransfer } = useCustodyGateway()
+
+  const [transferActionState, setTransferActionState] = useState<{
+    transferId: string
+    kind: "accept" | "reject"
+  } | null>(null)
+  const [historyError, setHistoryError] = useState<string | null>(null)
+  const [historySuccess, setHistorySuccess] = useState<string | null>(null)
 
   const selectedPartyView = partyViewById(selectedPartyViewId)
   const privacyProof = isPrivatePartyView(selectedPartyViewId)
@@ -61,6 +76,8 @@ export function TraceabilityView() {
   const visibleReceived = visibleTransfersReceivedForPartyView(
     selectedPartyViewId
   )
+  const pendingInbound = visiblePendingInboundForPartyView(selectedPartyViewId)
+  const pendingOutbound = visiblePendingOutboundForPartyView(selectedPartyViewId)
   const visibleTotalTons = partyViewVisibleTotalTons(selectedPartyViewId)
   const operationalNodeId = selectedPartyView?.operationalNodeId ?? null
   const canTransfer = Boolean(operationalNodeId) && !privacyProof
@@ -87,6 +104,44 @@ export function TraceabilityView() {
   function handleSelectPartyView(id: string) {
     selectPartyView(id)
     setSidePanel("none")
+    setHistoryError(null)
+    setHistorySuccess(null)
+  }
+
+  async function handleAcceptTransfer(transferId: string) {
+    setTransferActionState({ transferId, kind: "accept" })
+    setHistoryError(null)
+    setHistorySuccess(null)
+
+    const result = await acceptTransfer(transferId)
+    setTransferActionState(null)
+
+    if (result.ok) {
+      setHistorySuccess(
+        "Custody transfer accepted. The lot position is now in your holdings."
+      )
+      return
+    }
+
+    setHistoryError(result.error)
+  }
+
+  async function handleRejectTransfer(transferId: string) {
+    setTransferActionState({ transferId, kind: "reject" })
+    setHistoryError(null)
+    setHistorySuccess(null)
+
+    const result = await rejectTransfer(transferId)
+    setTransferActionState(null)
+
+    if (result.ok) {
+      setHistorySuccess(
+        "Custody transfer rejected. The sender's reserved quantity has been released."
+      )
+      return
+    }
+
+    setHistoryError(result.error)
   }
 
   return (
@@ -196,8 +251,19 @@ export function TraceabilityView() {
                   <HistoryPanel
                     sent={visibleSent}
                     received={visibleReceived}
+                    pendingInbound={pendingInbound}
+                    pendingOutbound={pendingOutbound}
                     accountNameById={accountNameById}
                     privacyProof={privacyProof}
+                    actionState={transferActionState}
+                    error={historyError}
+                    successMessage={historySuccess}
+                    onAcceptTransfer={(transferId) => {
+                      void handleAcceptTransfer(transferId)
+                    }}
+                    onRejectTransfer={(transferId) => {
+                      void handleRejectTransfer(transferId)
+                    }}
                   />
                 </TabsContent>
               </div>

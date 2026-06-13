@@ -26,15 +26,27 @@ function findSeedAssetId(
 
 export function withSeedTransferAssetIds(transfers: Transfer[]): Transfer[] {
   return transfers.map((transfer) => {
-    if (transfer.assetId) return transfer
+    const withAssetId = (() => {
+      if (transfer.assetId) return transfer
 
-    const assetId = findSeedAssetId(
-      transfer.fromAccountId,
-      transfer.commodity,
-      transfer.certifications,
-      transfer.rating
-    )
+      const assetId = findSeedAssetId(
+        transfer.fromAccountId,
+        transfer.commodity,
+        transfer.certifications,
+        transfer.rating
+      )
 
-    return assetId ? { ...transfer, assetId } : transfer
+      return assetId ? { ...transfer, assetId } : transfer
+    })()
+
+    const occurredAt =
+      withAssetId.occurredAt ?? withAssetId.createdAt ?? "2026-06-01T00:00:00.000Z"
+
+    return {
+      ...withAssetId,
+      status: withAssetId.status ?? "accepted",
+      createdAt: withAssetId.createdAt ?? occurredAt,
+      occurredAt: withAssetId.status === "pending" ? withAssetId.occurredAt : occurredAt,
+    }
   })
 }

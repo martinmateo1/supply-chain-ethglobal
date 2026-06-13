@@ -1,5 +1,5 @@
 # generated: 2026-06-13
-# last_updated: 2026-06-13T18:00:00Z
+# last_updated: 2026-06-13T21:30:00Z
 # project_key: NOKEY
 # tracking_system: file-system
 # story_location: /Users/diego/repos/buidl/hackaton/_bmad-output/implementation-artifacts
@@ -34,7 +34,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-06-13
-last_updated: 2026-06-13T18:00:00Z
+last_updated: 2026-06-13T21:30:00Z
 project: hackaton
 project_key: NOKEY
 tracking_system: file-system
@@ -49,11 +49,11 @@ development_status:
   1-4-origin-evidence-and-certification-metadata: done
   1-5-guided-demo-copy-and-ui-foundations: done
   epic-1-retrospective: optional
-  epic-2: backlog
-  2-1-custody-transfer-request-with-evidence: backlog
-  2-2-pending-inbound-transfer-acceptance: backlog
-  2-3-party-visible-transfer-history-and-evidence-cards: backlog
-  2-4-ledger-gateway-boundaries-for-custody-actions: backlog
+  epic-2: in-progress
+  2-1-custody-transfer-request-with-evidence: review
+  2-2-pending-inbound-transfer-acceptance: review
+  2-3-party-visible-transfer-history-and-evidence-cards: review
+  2-4-ledger-gateway-boundaries-for-custody-actions: review
   epic-2-retrospective: optional
   epic-3: backlog
   3-1-partial-transfer-split-with-conservation-feedback: backlog
