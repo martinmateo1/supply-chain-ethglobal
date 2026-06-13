@@ -14,6 +14,7 @@ type TransferActionState = {
 type HistoryPanelProps = {
   sent: Transfer[]
   received: Transfer[]
+  pendingOutbound: Transfer[]
   accountNameById: (id: string) => string
   privacyProof?: boolean
 }
@@ -82,51 +83,65 @@ export function TransferSection({
 export function HistoryPanel({
   sent,
   received,
+  pendingOutbound,
   accountNameById,
   privacyProof = false,
 }: HistoryPanelProps) {
-  const hasHistory = sent.length > 0 || received.length > 0 || !privacyProof
+  const hasActivity =
+    sent.length > 0 || received.length > 0 || pendingOutbound.length > 0
+
+  if (privacyProof) {
+    return (
+      <div className="flex flex-col">
+        <div className="flex h-full min-h-[280px] flex-col items-center justify-center rounded-xl border border-dashed bg-muted/30 px-6 text-center">
+          <EyeOff className="mb-3 size-10 text-muted-foreground/60" />
+          <p className="font-medium">No private transfer history visible</p>
+          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+            No private contracts are visible to this company. Custody transfers
+            and evidence on the demo route are hidden from unrelated parties by
+            Canton selective visibility.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!hasActivity) {
+    return (
+      <div className="flex flex-col">
+        <div className="flex h-full min-h-[280px] flex-col items-center justify-center rounded-xl border border-dashed bg-muted/30 px-6 text-center">
+          <History className="mb-3 size-10 text-muted-foreground/60" />
+          <p className="font-medium">No custody history yet</p>
+          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+            Custody transfers visible to this Party View will appear here.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col">
-      {!hasHistory ? (
-        <div className="flex h-full min-h-[280px] flex-col items-center justify-center rounded-xl border border-dashed bg-muted/30 px-6 text-center">
-          {privacyProof ? (
-            <>
-              <EyeOff className="mb-3 size-10 text-muted-foreground/60" />
-              <p className="font-medium">No private transfer history visible</p>
-              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                No private contracts are visible to this company. Custody
-                transfers and evidence on the demo route are hidden from
-                unrelated parties by Canton selective visibility.
-              </p>
-            </>
-          ) : (
-            <>
-              <History className="mb-3 size-10 text-muted-foreground/60" />
-              <p className="font-medium">No custody history yet</p>
-              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                Custody transfers visible to this Party View will appear here.
-              </p>
-            </>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-6">
-          <TransferSection
-            title="Sent"
-            transfers={sent}
-            direction="sent"
-            accountNameById={accountNameById}
-          />
-          <TransferSection
-            title="Received"
-            transfers={received}
-            direction="received"
-            accountNameById={accountNameById}
-          />
-        </div>
-      )}
+      <div className="space-y-6">
+        <TransferSection
+          title="Sent — awaiting counterparty"
+          transfers={pendingOutbound}
+          direction="sent"
+          accountNameById={accountNameById}
+        />
+        <TransferSection
+          title="Sent"
+          transfers={sent}
+          direction="sent"
+          accountNameById={accountNameById}
+        />
+        <TransferSection
+          title="Received"
+          transfers={received}
+          direction="received"
+          accountNameById={accountNameById}
+        />
+      </div>
     </div>
   )
 }

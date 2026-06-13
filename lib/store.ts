@@ -103,8 +103,25 @@ function transferActorPartyViewId(partyViewId: string): string {
   return view?.operationalNodeId ?? partyViewId
 }
 
+/**
+ * Used only during localStorage hydration. Falls back to SEED_TRANSFERS when
+ * the persisted value is absent or empty, ensuring demo seed data is always
+ * present for a fresh or corrupted local store.
+ */
 function normalizeTransfers(transfers: Transfer[] | undefined): Transfer[] {
-  return withSeedTransferAssetIds(transfers ?? SEED_TRANSFERS)
+  if (!transfers || transfers.length === 0) {
+    return withSeedTransferAssetIds(SEED_TRANSFERS)
+  }
+  return withSeedTransferAssetIds(transfers)
+}
+
+/**
+ * Used by applyCustodySnapshot for live snapshot updates. Enriches assetIds
+ * from seed assets but never injects SEED_TRANSFERS — the server snapshot is
+ * the source of truth (including empty for Canton mode with a fresh ledger).
+ */
+function enrichTransfers(transfers: Transfer[]): Transfer[] {
+  return withSeedTransferAssetIds(transfers)
 }
 
 const PRODUCTION_SITE_NODE_ID = "production-site"
@@ -116,7 +133,7 @@ export const useTraceabilityStore = create<TraceabilityState>()(
       selectPartyView: (id) => set({ selectedPartyViewId: id }),
       resetData: () => set(initialState),
       applyCustodySnapshot: ({ assets, transfers }) =>
-        set({ assets, transfers: normalizeTransfers(transfers) }),
+        set({ assets, transfers: enrichTransfers(transfers) }),
       addLot: ({
         accountId,
         commodity,

@@ -12,7 +12,6 @@ type TransferActionState = {
 
 type RequestsPanelProps = {
   pendingInbound: Transfer[]
-  pendingOutbound: Transfer[]
   accountNameById: (id: string) => string
   privacyProof?: boolean
   onAcceptTransfer?: (transferId: string) => void
@@ -24,7 +23,6 @@ type RequestsPanelProps = {
 
 export function RequestsPanel({
   pendingInbound,
-  pendingOutbound,
   accountNameById,
   privacyProof = false,
   onAcceptTransfer,
@@ -33,7 +31,7 @@ export function RequestsPanel({
   error = null,
   successMessage = null,
 }: RequestsPanelProps) {
-  const pendingCount = pendingInbound.length + pendingOutbound.length
+  const pendingCount = pendingInbound.length
 
   if (privacyProof) {
     return (
@@ -103,12 +101,6 @@ export function RequestsPanel({
           onAcceptTransfer={onAcceptTransfer}
           onRejectTransfer={onRejectTransfer}
           actionState={actionState}
-        />
-        <TransferSection
-          title="Sent — awaiting counterparty"
-          transfers={pendingOutbound}
-          direction="sent"
-          accountNameById={accountNameById}
         />
       </div>
     </div>

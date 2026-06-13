@@ -1,8 +1,9 @@
 "use client"
 
-import { ArrowLeftRight, PackagePlus } from "lucide-react"
+import { ArrowLeftRight, Combine, PackagePlus } from "lucide-react"
 import { useState } from "react"
 import { AssetsPanel } from "@/components/assets-panel"
+import { CombinePanel } from "@/components/combine-panel"
 import { CreateLotPanel } from "@/components/create-lot-panel"
 import { AppNavbar } from "@/components/app-navbar"
 import { HistoryPanel } from "@/components/history-panel"
@@ -24,7 +25,7 @@ import { isPrivatePartyView } from "@/lib/provenance"
 import { useTraceabilityStore } from "@/lib/store"
 import { cn, formatTons } from "@/lib/utils"
 
-type SidePanel = "none" | "transfer" | "create-lot"
+type SidePanel = "none" | "transfer" | "create-lot" | "combine"
 
 export function TraceabilityView() {
   const accounts = useTraceabilityStore((state) => state.accounts)
@@ -76,6 +77,8 @@ export function TraceabilityView() {
   const canCreateLot =
     selectedPartyView?.companyRole === "producer" &&
     operationalNodeId === "production-site"
+  const canCombine =
+    selectedPartyView?.companyRole === "storage" && Boolean(operationalNodeId)
 
   const prefersReducedMotion = usePrefersReducedMotion()
   const slideClass = prefersReducedMotion
@@ -191,6 +194,21 @@ export function TraceabilityView() {
                     Create Lot
                   </Button>
                 ) : null}
+                {canCombine ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "rounded-full bg-white dark:bg-background",
+                      panelOpen && "pointer-events-none opacity-0"
+                    )}
+                    onClick={() => setSidePanel("combine")}
+                  >
+                    <Combine />
+                    Combine lots
+                  </Button>
+                ) : null}
                 {canTransfer ? (
                   <Button
                     type="button"
@@ -254,7 +272,6 @@ export function TraceabilityView() {
                 <TabsContent value="requests" className="bg-muted">
                   <RequestsPanel
                     pendingInbound={pendingInbound}
-                    pendingOutbound={pendingOutbound}
                     accountNameById={accountNameById}
                     privacyProof={privacyProof}
                     actionState={transferActionState}
@@ -272,6 +289,7 @@ export function TraceabilityView() {
                   <HistoryPanel
                     sent={visibleSent}
                     received={visibleReceived}
+                    pendingOutbound={pendingOutbound}
                     accountNameById={accountNameById}
                     privacyProof={privacyProof}
                   />
@@ -315,6 +333,23 @@ export function TraceabilityView() {
               key={`create-${operationalNodeId}`}
               onClose={() => setSidePanel("none")}
               operationalNodeId={operationalNodeId}
+            />
+          </aside>
+        ) : null}
+
+        {canCombine && operationalNodeId && sidePanel === "combine" ? (
+          <aside
+            className={cn(
+              "h-full w-[420px] flex-shrink-0 overflow-y-auto overscroll-y-contain border-l border-border bg-background px-6 py-8 pb-28",
+              panelSlideClass,
+              panelOpen && "-translate-x-[240px]"
+            )}
+            aria-hidden={!panelOpen}
+          >
+            <CombinePanel
+              key={`combine-${operationalNodeId}`}
+              onClose={() => setSidePanel("none")}
+              accountId={operationalNodeId}
             />
           </aside>
         ) : null}

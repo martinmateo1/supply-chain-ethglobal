@@ -5,6 +5,12 @@ import Commodity.Types
 data TransferStatus = Pending | Completed | Rejected
   deriving (Eq, Show)
 
+-- Order-independent certification-set equality: combine must not silently drop
+-- or reorder certifications.
+sameCertSet : [Certification] -> [Certification] -> Bool
+sameCertSet a b =
+  length a == length b && all (`elem` b) a && all (`elem` a) b
+
 -- LotPosition is the authoritative custody-holding ledger position.
 -- Reserve-on-initiate: InitiateTransfer archives this contract and creates a
 -- pending CustodyTransfer plus an optional remainder LotPosition for the sender.
@@ -51,6 +57,36 @@ template LotPosition
             return (Some cid)
           else return None
         return (transferCid, remainderCid)
+
+    -- CombineLots consumes this position and a compatible sibling owned by the
+    -- same party, creating one combined LotPosition. Conservation: combined
+    -- amount equals the exact sum of both sources. Compatibility requires the
+    -- same Commodity, identical certification set, and matching quality grade.
+    choice CombineLots : ContractId LotPosition
+      with
+        otherLotCid : ContractId LotPosition
+        combinedLotId : Text
+      controller owner
+      do
+        other <- fetch otherLotCid
+        assertMsg "Lots must share the same owner" (other.owner == owner)
+        assertMsg "Lots must share the same commodity" (other.commodity == commodity)
+        assertMsg "Lots must share the same quality grade" (other.quality == quality)
+        assertMsg "Lots must share the same unit" (other.quantity.unit == quantity.unit)
+        assertMsg
+          "Certification sets must match exactly"
+          (sameCertSet other.certifications certifications)
+        archive otherLotCid
+        let combinedQuantity =
+              quantity with amount = quantity.amount + other.quantity.amount
+        create LotPosition with
+          owner
+          lotId = combinedLotId
+          commodity
+          quantity = combinedQuantity
+          certifications
+          quality
+          originIdentifier
 
 -- CustodyTransfer records an evidence-backed custody movement between parties.
 -- AcceptTransfer / RejectTransfer are receiver-controlled; reserved quantity

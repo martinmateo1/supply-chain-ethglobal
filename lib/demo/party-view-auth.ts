@@ -46,6 +46,20 @@ export function assertOriginLotProducer(
   }
 }
 
+/** The combining party must own the operational node holding the lots. */
+export function assertCombineOperator(
+  partyViewId: string,
+  accountId: string
+): void {
+  const nodeId = operationalNodeForPartyView(partyViewId)
+  if (!nodeId || nodeId !== accountId) {
+    throw new LedgerError(
+      LedgerErrorCode.UNAUTHORIZED_PARTY_VIEW,
+      "This Party View cannot combine lot positions at the selected operational node."
+    )
+  }
+}
+
 export function assertTransferParticipant(
   partyViewId: string,
   fromAccountId: string,

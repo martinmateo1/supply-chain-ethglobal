@@ -11,6 +11,7 @@ import {
 } from "@/components/asset-detail/columns"
 import { AppNavbar } from "@/components/app-navbar"
 import { CommodityThumbnail } from "@/components/commodity-thumbnail"
+import { ProvenanceTimeline } from "@/components/provenance-timeline"
 import { Badge } from "@/components/ui/badge"
 import {
   Breadcrumb,
@@ -29,6 +30,7 @@ import {
   tokenId,
   transferMatchesAsset,
 } from "@/lib/provenance"
+import { buildProvenanceTimeline } from "@/lib/demo/custody-service"
 import { partyViewById, partyViewLabel } from "@/lib/demo/party-views"
 import { useTraceabilityStore } from "@/lib/store"
 import {
@@ -126,6 +128,12 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
       }),
     [accountById, visibilityPartyId, asset?.accountId]
   )
+  const provenanceTimeline = useMemo(() => {
+    if (!asset) return []
+    // Visibility-scoped: pass only the transfers this party may see so the
+    // timeline never exposes another party's private custody steps (AC5).
+    return buildProvenanceTimeline(asset, { assets, transfers }, partyTransfers)
+  }, [asset, assets, transfers, partyTransfers])
 
   const pageShell = (content: ReactNode) => (
     <div className="flex h-svh w-full flex-col overflow-hidden">
@@ -319,6 +327,62 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
             <span className="font-mono text-xs">{fingerprint}</span>
           </div>
         </div>
+      </section>
+
+      {asset.sourceLotIds && asset.sourceLotIds.length > 0 ? (
+        <section className="mb-8 space-y-3">
+          <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
+            Source lot positions
+          </h2>
+          <div className="rounded-lg border bg-background p-4 text-sm">
+            <p className="mb-3 text-xs text-muted-foreground">
+              This lot was derived from a split or combine. Provenance links to
+              every source position below are preserved; certifications and
+              evidence are carried forward.
+            </p>
+            {asset.sourceLotIds.map((sourceId, index) => {
+              const sourceVisible = isAssetVisibleToSelectedParty(sourceId)
+              return (
+                <div key={sourceId}>
+                  {index > 0 ? <Separator className="my-2" /> : null}
+                  <div className="flex items-center justify-between gap-3 py-1.5">
+                    <span className="text-muted-foreground">
+                      Source reference
+                    </span>
+                    {sourceVisible ? (
+                      <Link
+                        href={`/asset/${sourceId}`}
+                        className="font-mono text-xs font-medium text-primary hover:underline"
+                      >
+                        {tokenId(sourceId)}
+                      </Link>
+                    ) : (
+                      <span className="font-mono text-xs">
+                        {tokenId(sourceId)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="mb-8 space-y-3">
+        <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
+          Provenance timeline
+        </h2>
+        <p className="text-xs text-muted-foreground">
+          Read-only projection of this lot&apos;s origin, splits, combines, and
+          custody transfers. Each step shows the operation, parties, quantity,
+          and conservation result. Evidence stays bound to the step it supports.
+        </p>
+        <ProvenanceTimeline
+          entries={provenanceTimeline}
+          accountName={(id) => accountById(id)?.name ?? id}
+          isSourceVisible={isAssetVisibleToSelectedParty}
+        />
       </section>
 
       <section className="mb-8 space-y-3">

@@ -1,10 +1,12 @@
 import { isCantonBackend } from "@/lib/ledger/backend"
 import {
   acceptTransfer as demoAcceptTransfer,
+  combineLots as demoCombineLots,
   initiateTransfer as demoInitiateTransfer,
   nextDemoAssetId,
   rejectTransfer as demoRejectTransfer,
   transferHistoryForParty,
+  type CombineLotsRequest,
   type CreateLotRequest,
   type CustodySnapshot,
   type InitiateTransferRequest,
@@ -46,6 +48,21 @@ export async function gatewayRejectTransfer(
     return ledgerCommands.rejectTransfer(input)
   }
   return demoRejectTransfer(snapshot, input)
+}
+
+export async function gatewayCombineLots(
+  snapshot: CustodySnapshot,
+  input: CombineLotsRequest,
+) {
+  if (isCantonBackend()) {
+    // Daml parity: the `CombineLots` choice on LotPosition mirrors this rule.
+    // Canton adapter wiring lands with ledger integration; demo path is active.
+    throw new LedgerError(
+      LedgerErrorCode.LEDGER_COMMAND_FAILED,
+      "Combine is not yet wired to the Canton backend.",
+    )
+  }
+  return demoCombineLots(snapshot, input)
 }
 
 export async function gatewayTransferHistory(
