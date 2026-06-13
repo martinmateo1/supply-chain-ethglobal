@@ -14,18 +14,11 @@ type TransferActionState = {
 type HistoryPanelProps = {
   sent: Transfer[]
   received: Transfer[]
-  pendingInbound: Transfer[]
-  pendingOutbound: Transfer[]
   accountNameById: (id: string) => string
   privacyProof?: boolean
-  onAcceptTransfer?: (transferId: string) => void
-  onRejectTransfer?: (transferId: string) => void
-  actionState?: TransferActionState
-  error?: string | null
-  successMessage?: string | null
 }
 
-function TransferSection({
+export function TransferSection({
   title,
   transfers,
   direction,
@@ -89,22 +82,10 @@ function TransferSection({
 export function HistoryPanel({
   sent,
   received,
-  pendingInbound,
-  pendingOutbound,
   accountNameById,
   privacyProof = false,
-  onAcceptTransfer,
-  onRejectTransfer,
-  actionState = null,
-  error = null,
-  successMessage = null,
 }: HistoryPanelProps) {
-  const hasHistory =
-    sent.length > 0 ||
-    received.length > 0 ||
-    pendingInbound.length > 0 ||
-    pendingOutbound.length > 0 ||
-    !privacyProof
+  const hasHistory = sent.length > 0 || received.length > 0 || !privacyProof
 
   return (
     <div className="flex flex-col">
@@ -132,35 +113,6 @@ export function HistoryPanel({
         </div>
       ) : (
         <div className="space-y-6">
-          {error ? (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
-          ) : null}
-          {successMessage ? (
-            <p className="text-sm text-emerald-800 dark:text-emerald-300" role="status">
-              {successMessage}
-            </p>
-          ) : null}
-          {!privacyProof ? (
-            <TransferSection
-              title="Pending inbound"
-              transfers={pendingInbound}
-              direction="received"
-              accountNameById={accountNameById}
-              showActions
-              onAcceptTransfer={onAcceptTransfer}
-              onRejectTransfer={onRejectTransfer}
-              actionState={actionState}
-              emptyMessage="No transfers awaiting your decision."
-            />
-          ) : null}
-          <TransferSection
-            title="Pending outbound"
-            transfers={pendingOutbound}
-            direction="sent"
-            accountNameById={accountNameById}
-          />
           <TransferSection
             title="Sent"
             transfers={sent}
