@@ -127,9 +127,7 @@ pnpm ledger:verify-demo-flow        # happy path: initiate -> accept (asserts re
 pnpm ledger:attempt-double-spend    # negative: double-spend blocked (asserts consumed-lot failure)
 ```
 
-> **Note on Create Lot:** under `LEDGER_BACKEND=canton` the in-app "Create Lot" panel is hidden —
-> `createLot` is not yet ledger-backed, so origin lots come from `SetupDemo` seeding. Drive the
-> demo via the transfer → accept/reject flow. To override without `.env.local`, pass env vars inline:
+To override without `.env.local`, pass env vars inline:
 
 ```bash
 LEDGER_BACKEND=canton \

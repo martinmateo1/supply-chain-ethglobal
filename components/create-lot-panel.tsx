@@ -6,6 +6,7 @@ import { PackagePlus, X } from "lucide-react"
 import { CertificateDropzone } from "@/components/certificate-dropzone"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import { useCustodyGateway } from "@/hooks/use-custody-gateway"
 import {
   Select,
   SelectContent,
@@ -22,7 +23,6 @@ import {
   STAGE_META,
   type Certification,
   type CommodityType,
-  type OriginEvidenceReference,
   type Rating,
   type TransferAttachment,
 } from "@/lib/types"
@@ -38,27 +38,12 @@ const COMMODITY_OPTIONS: CommodityType[] = ["coffee", "cacao"]
 const RATING_OPTIONS: Rating[] = ["A", "B", "C"]
 const CERTIFICATION_OPTIONS: Certification[] = ["non-gmo", "deforestation-free"]
 
-function toOriginEvidence(
-  attachments: TransferAttachment[]
-): OriginEvidenceReference[] {
-  const now = new Date().toISOString()
-  return attachments.map((attachment) => ({
-    id: attachment.id,
-    name: attachment.name,
-    mimeType: attachment.mimeType,
-    size: attachment.size,
-    hash: attachment.hash,
-    documentType: attachment.mimeType.split("/")[1] ?? "document",
-    timestamp: now,
-  }))
-}
-
 export function CreateLotPanel({
   onClose,
   operationalNodeId,
 }: CreateLotPanelProps) {
   const accounts = useTraceabilityStore((state) => state.accounts)
-  const addLot = useTraceabilityStore((state) => state.addLot)
+  const { createLot, isSubmitting, error: gatewayError } = useCustodyGateway()
 
   const nodeAccount = accounts.find((account) => account.id === operationalNodeId)
   const [commodity, setCommodity] = useState<CommodityType | "">("")
@@ -68,6 +53,7 @@ export function CreateLotPanel({
   const [certifications, setCertifications] = useState<Certification[]>([])
   const [attachments, setAttachments] = useState<TransferAttachment[]>([])
   const [submitted, setSubmitted] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const quantity = parseFloat(quantityStr)
   const isQuantityValid = Number.isFinite(quantity) && quantity > 0
@@ -117,17 +103,25 @@ export function CreateLotPanel({
   function handleConfirm() {
     if (!canConfirm || !commodity || !rating) return
 
-    addLot({
-      accountId: operationalNodeId,
-      commodity,
-      quantity,
-      rating,
-      certifications,
-      originIdentifier: originIdentifier.trim(),
-      originEvidence:
-        attachments.length > 0 ? toOriginEvidence(attachments) : undefined,
-    })
-    setSubmitted(true)
+    setSubmitError(null)
+    void (async () => {
+      const result = await createLot({
+        accountId: operationalNodeId,
+        commodity,
+        quantity,
+        rating,
+        certifications,
+        originIdentifier: originIdentifier.trim(),
+        attachments: attachments.length > 0 ? attachments : undefined,
+      })
+
+      if (result.ok) {
+        setSubmitted(true)
+        return
+      }
+
+      setSubmitError(result.error)
+    })()
   }
 
   if (submitted) {
@@ -363,8 +357,18 @@ export function CreateLotPanel({
           <p className="text-xs text-muted-foreground">{validationMessage}</p>
         ) : null}
 
-        <Button className="w-full" disabled={!canConfirm} onClick={handleConfirm}>
-          Confirm lot creation
+        {submitError || gatewayError ? (
+          <p className="text-xs text-destructive" role="alert">
+            {submitError ?? gatewayError}
+          </p>
+        ) : null}
+
+        <Button
+          className="w-full"
+          disabled={!canConfirm || isSubmitting}
+          onClick={handleConfirm}
+        >
+          {isSubmitting ? "Creating lot…" : "Confirm lot creation"}
         </Button>
       </div>
     </div>

@@ -1,8 +1,10 @@
 import {
+  assertOriginLotProducer,
   assertRecipientPartyView,
   assertSenderPartyView,
 } from "@/lib/demo/party-view-auth"
 import type {
+  CreateLotRequest,
   CustodySnapshot,
   InitiateTransferRequest,
   TransferActionRequest,
@@ -20,6 +22,9 @@ import {
   mapLotPositionToAsset,
   mapTransferPayloadToLedgerTransfer,
   partyHintFromId,
+  toDamlCertification,
+  toDamlCommodity,
+  toDamlQualityGrade,
   type LedgerCustodyTransfer,
   type LedgerLotPosition,
 } from "@/lib/ledger/mappers"
@@ -362,4 +367,82 @@ export async function cantonRejectTransfer(
   }
 
   return { ...snapshot, transfer }
+}
+
+export async function cantonCreateLot(
+  input: CreateLotRequest,
+): Promise<CustodySnapshot & { asset: Asset }> {
+  assertOriginLotProducer(input.partyViewId, input.accountId)
+
+  if (!Number.isFinite(input.quantity) || input.quantity <= 0) {
+    throw new LedgerError(
+      LedgerErrorCode.INSUFFICIENT_QUANTITY,
+      "Lot quantity must be greater than zero.",
+    )
+  }
+
+  const originIdentifier = input.originIdentifier.trim()
+  if (!originIdentifier) {
+    throw new LedgerError(
+      LedgerErrorCode.EVIDENCE_REFERENCE_INVALID,
+      "Origin identifier is required to create a lot on the ledger.",
+    )
+  }
+
+  if (!input.certifications.length) {
+    throw new LedgerError(
+      LedgerErrorCode.EVIDENCE_REFERENCE_INVALID,
+      "At least one certification label is required.",
+    )
+  }
+
+  const client = getClient()
+  const ownerParty = await resolvePartyIdForView(client, input.partyViewId)
+  const lotId = `lot-${nextCommandId("create")}`
+
+  const response = await client.submitAndWaitForTransaction(
+    [ownerParty],
+    [ownerParty],
+    [
+      {
+        CreateCommand: {
+          templateId: lotPositionTemplateId(client),
+          createArguments: {
+            owner: ownerParty,
+            lotId,
+            commodity: toDamlCommodity(input.commodity),
+            quantity: { amount: String(input.quantity), unit: "tons" },
+            certifications: input.certifications.map(toDamlCertification),
+            quality: toDamlQualityGrade(input.rating),
+            originIdentifier,
+          },
+        },
+      },
+    ],
+    nextCommandId("create-lot"),
+  )
+
+  const createdEvent = response.transaction?.events?.find((event) =>
+    event.CreatedEvent?.templateId?.endsWith(
+      ":Commodity.LotPosition:LotPosition",
+    ),
+  )
+  const contractId = createdEvent?.CreatedEvent?.contractId
+  if (!contractId) {
+    throw new LedgerError(
+      LedgerErrorCode.LEDGER_COMMAND_FAILED,
+      "Lot was submitted but could not be read back from the ledger.",
+    )
+  }
+
+  const snapshot = await snapshotForPartyViews(client, [input.partyViewId])
+  const asset = snapshot.assets.find((item) => item.id === contractId)
+  if (!asset) {
+    throw new LedgerError(
+      LedgerErrorCode.LEDGER_COMMAND_FAILED,
+      "Created lot is not visible to this Party View.",
+    )
+  }
+
+  return { ...snapshot, asset }
 }

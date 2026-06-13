@@ -56,9 +56,8 @@ Composer
 
 ### Known Limitations
 
-- **`createLot` is not ledger-backed.** On the Canton path `ledgerCommands.createLot` throws by design; the client-only "Create Lot" panel is now **hidden when `LEDGER_BACKEND=canton`** (`components/traceability-view.tsx`, `canCreateLot`) so it cannot write client state that the next ledger sync would silently overwrite. Origin lots are seeded via `SetupDemo`. Wiring `createLot` to a Daml `create LotPosition` command is follow-up work.
-- **No automated UI E2E.** Coverage is: Daml Script tests (`dpm test`), gateway unit tests (`pnpm test`), and two live-sandbox scripts. A Playwright-style browser test is not yet in place.
-- **Seed parity:** `SetupDemo` seeds 3 lots/node (21 total) and no historical transfers, vs. 48 assets + 8 transfers in `lib/data.ts` (demo mode). Canton-mode history therefore starts empty.
+- **No automated UI E2E.** Coverage is: Daml Script tests (`dpm test`), gateway unit tests (`pnpm test`), and live-sandbox scripts (`ledger:verify-demo-flow`, `ledger:verify-create-lot`, `ledger:attempt-double-spend`). A Playwright-style browser test is not yet in place.
+- **Seed parity:** `SetupDemo` seeds 3 lots/node (21 total) and no historical transfers, vs. 48 assets + 8 transfers in `lib/data.ts` (demo mode). Canton-mode history therefore starts empty until transfers are initiated on the ledger.
 
 ### Post-Review Hardening (party-mode code review, 2026-06-13)
 

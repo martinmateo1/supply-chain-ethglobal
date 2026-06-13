@@ -92,6 +92,20 @@ export function partyHintFromId(partyId: string): string {
   return partyId.split("::")[0] ?? partyId
 }
 
+export function toDamlCommodity(value: Asset["commodity"]): string {
+  return value === "cacao" ? "Cacao" : "Coffee"
+}
+
+export function toDamlCertification(value: Certification): string {
+  return value === "deforestation-free" ? "DeforestationFree" : "NonGMO"
+}
+
+export function toDamlQualityGrade(value: Rating): string {
+  if (value === "B") return "GradeB"
+  if (value === "C") return "GradeC"
+  return "GradeA"
+}
+
 export function mapLotPayloadToLedgerLot(
   contractId: string,
   payload: Record<string, unknown>,

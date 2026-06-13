@@ -16,6 +16,7 @@
     "ledger:bringup": "bash scripts/ledger-bringup.sh",
     "ledger:attempt-double-spend": "tsx --env-file-if-exists=.env.local scripts/attempt-double-spend.ts",
     "ledger:verify-demo-flow": "tsx --env-file-if-exists=.env.local scripts/verify-demo-flow.ts",
+    "ledger:verify-create-lot": "tsx --env-file-if-exists=.env.local scripts/verify-create-lot.ts",
     "verify:party-visibility": "tsx scripts/verify-party-visibility.ts",
     "verify:custody-transfers": "tsx scripts/verify-custody-transfers.ts"
   },

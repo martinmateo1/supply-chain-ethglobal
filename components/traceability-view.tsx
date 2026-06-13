@@ -83,12 +83,7 @@ export function TraceabilityView() {
   const visibleTotalTons = partyViewVisibleTotalTons(selectedPartyViewId)
   const operationalNodeId = selectedPartyView?.operationalNodeId ?? null
   const canTransfer = Boolean(operationalNodeId) && !privacyProof
-  // Client-side lot origination is a demo-only affordance. Under the Canton
-  // backend, lots are authored on the ledger (SetupDemo seeding); exposing the
-  // client-only "Create Lot" panel there would write state the next ledger
-  // sync silently overwrites, so it is hidden until createLot is ledger-backed.
   const canCreateLot =
-    !isCantonBackend &&
     selectedPartyView?.companyRole === "producer" &&
     operationalNodeId === "production-site"
 

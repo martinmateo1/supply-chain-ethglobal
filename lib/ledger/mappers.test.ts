@@ -7,7 +7,9 @@ import {
   mapLotPositionToAsset,
   mapTransferPayloadToLedgerTransfer,
   partyHintFromId,
-  type LedgerCustodyTransfer,
+  toDamlCertification,
+  toDamlCommodity,
+  toDamlQualityGrade,
 } from "@/lib/ledger/mappers"
 
 const lotPayload = {
@@ -142,13 +144,20 @@ describe("mapCustodyTransferToTransfer", () => {
   })
 })
 
-describe("LedgerCustodyTransfer status union", () => {
-  it("only allows the three known statuses at the type level", () => {
-    const statuses: LedgerCustodyTransfer["status"][] = [
-      "Pending",
-      "Completed",
-      "Rejected",
-    ]
-    expect(statuses).toHaveLength(3)
+describe("toDaml encodings", () => {
+  it("maps UI commodity to Daml enum", () => {
+    expect(toDamlCommodity("coffee")).toBe("Coffee")
+    expect(toDamlCommodity("cacao")).toBe("Cacao")
+  })
+
+  it("maps UI certification to Daml enum", () => {
+    expect(toDamlCertification("non-gmo")).toBe("NonGMO")
+    expect(toDamlCertification("deforestation-free")).toBe("DeforestationFree")
+  })
+
+  it("maps UI rating to Daml grade", () => {
+    expect(toDamlQualityGrade("A")).toBe("GradeA")
+    expect(toDamlQualityGrade("B")).toBe("GradeB")
+    expect(toDamlQualityGrade("C")).toBe("GradeC")
   })
 })

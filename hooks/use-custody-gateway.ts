@@ -7,12 +7,25 @@ import type { ApiResponse } from "@/lib/api/response"
 import type { CustodySnapshot } from "@/lib/demo/custody-service"
 import type { InitiateTransferRequest } from "@/lib/demo/custody-service"
 import { useTraceabilityStore } from "@/lib/store"
-import type { Asset, Transfer, TransferAttachment } from "@/lib/types"
+import type {
+  Asset,
+  Certification,
+  CommodityType,
+  Rating,
+  Transfer,
+  TransferAttachment,
+} from "@/lib/types"
 
 type CustodyMutationResult = {
   assets: Asset[]
   transfers: Transfer[]
   transfer: Transfer
+}
+
+type CreateLotMutationResult = {
+  assets: Asset[]
+  transfers: Transfer[]
+  asset: Asset
 }
 
 type GatewayError = {
@@ -179,10 +192,55 @@ export function useCustodyGateway() {
     [applyCustodySnapshot, getSnapshot, isCanton, selectedPartyViewId],
   )
 
+  const createLot = useCallback(
+    async (input: {
+      accountId: string
+      commodity: CommodityType
+      quantity: number
+      rating: Rating
+      certifications: Certification[]
+      originIdentifier: string
+      attachments?: TransferAttachment[]
+    }) => {
+      setIsSubmitting(true)
+      setError(null)
+
+      const request = {
+        partyViewId: selectedPartyViewId,
+        ...input,
+        ...(isCanton ? {} : { snapshot: getSnapshot() }),
+      }
+
+      const { data, error: gatewayError } =
+        await postCustody<CreateLotMutationResult>(
+          "/api/ledger/create-lot",
+          request,
+        )
+
+      setIsSubmitting(false)
+
+      if (gatewayError) {
+        setError(gatewayError.message)
+        return { ok: false as const, error: gatewayError.message }
+      }
+
+      if (data) {
+        applyCustodySnapshot({ assets: data.assets, transfers: data.transfers })
+        return { ok: true as const, asset: data.asset }
+      }
+
+      const fallback = "Lot position could not be created."
+      setError(fallback)
+      return { ok: false as const, error: fallback }
+    },
+    [applyCustodySnapshot, getSnapshot, isCanton, selectedPartyViewId],
+  )
+
   return {
     initiateTransfer,
     acceptTransfer,
     rejectTransfer,
+    createLot,
     isSubmitting,
     error,
     clearError: () => setError(null),
