@@ -1,25 +1,27 @@
 import type { LucideIcon } from "lucide-react"
 import {
   Anchor,
+  Coffee,
   Factory,
   Sprout,
   Truck,
   Warehouse,
-  Wheat,
 } from "lucide-react"
 
-export type CommodityType = "soybean" | "wheat" | "corn"
+export type CommodityType = "coffee" | "cacao"
 
 export type Certification = "non-gmo" | "deforestation-free"
 
 export type Rating = "A" | "B" | "C"
 
 export type StageType =
-  | "campo"
-  | "transporte"
+  | "production"
+  | "truck"
   | "silo"
-  | "puerto"
-  | "planta"
+  | "railway"
+  | "origin-port"
+  | "ship"
+  | "destination-port"
 
 export type Account = {
   id: string
@@ -40,6 +42,14 @@ export type Asset = {
   unit: "tons"
 }
 
+export type TransferAttachment = {
+  id: string
+  name: string
+  mimeType: string
+  size: number
+  hash: string
+}
+
 export type Transfer = {
   id: string
   fromAccountId: string
@@ -50,6 +60,7 @@ export type Transfer = {
   quantity: number
   unit: "tons"
   occurredAt: string
+  attachments?: TransferAttachment[]
 }
 
 export type CommodityMeta = {
@@ -69,19 +80,14 @@ export type RatingMeta = {
 }
 
 export const COMMODITY_META: Record<CommodityType, CommodityMeta> = {
-  soybean: {
-    label: "Soybean",
-    color: "text-amber-700 dark:text-amber-400",
-    icon: Sprout,
+  coffee: {
+    label: "Coffee beans",
+    color: "text-amber-800 dark:text-amber-300",
+    icon: Coffee,
   },
-  wheat: {
-    label: "Wheat",
-    color: "text-yellow-700 dark:text-yellow-400",
-    icon: Wheat,
-  },
-  corn: {
-    label: "Corn",
-    color: "text-orange-700 dark:text-orange-400",
+  cacao: {
+    label: "Cacao",
+    color: "text-stone-800 dark:text-stone-300",
     icon: Sprout,
   },
 }
@@ -121,11 +127,13 @@ export const STAGE_META: Record<
   StageType,
   { label: string; icon: LucideIcon }
 > = {
-  campo: { label: "Field", icon: Sprout },
-  transporte: { label: "Transport", icon: Truck },
+  production: { label: "Production site", icon: Sprout },
+  truck: { label: "Truck transport", icon: Truck },
   silo: { label: "Silo", icon: Warehouse },
-  puerto: { label: "Port", icon: Anchor },
-  planta: { label: "Processing plant", icon: Factory },
+  railway: { label: "Railway transport", icon: Factory },
+  "origin-port": { label: "Origin port", icon: Anchor },
+  ship: { label: "Ship", icon: Anchor },
+  "destination-port": { label: "Destination port", icon: Anchor },
 }
 
 export function certificationKey(certifications: Certification[]): string {
@@ -140,19 +148,17 @@ export function assetKey(
 }
 
 export const ASSET_IMAGES: Record<string, string> = {
-  [assetKey("soybean", ["non-gmo", "deforestation-free"])]:
+  [assetKey("coffee", ["non-gmo", "deforestation-free"])]:
     "/assets/green.png",
-  [assetKey("corn", ["non-gmo"])]: "/assets/orange.png",
-  [assetKey("soybean", ["non-gmo"])]: "/assets/blue.png",
-  [assetKey("wheat", ["deforestation-free"])]: "/assets/red.png",
-  [assetKey("corn", ["non-gmo", "deforestation-free"])]:
+  [assetKey("coffee", ["non-gmo"])]: "/assets/blue.png",
+  [assetKey("cacao", ["deforestation-free"])]: "/assets/red.png",
+  [assetKey("cacao", ["non-gmo", "deforestation-free"])]:
     "/assets/purple.png",
 }
 
 const COMMODITY_DEFAULT_IMAGE: Record<CommodityType, string> = {
-  soybean: "/assets/green.png",
-  wheat: "/assets/red.png",
-  corn: "/assets/orange.png",
+  coffee: "/assets/green.png",
+  cacao: "/assets/orange.png",
 }
 
 export function assetImage(
