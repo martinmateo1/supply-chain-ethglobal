@@ -1,5 +1,7 @@
 module Scripts.SetupDemo where
 
+import Daml.Script
+
 -- TODO (Story 1.3+): allocate demo parties, create seed LotPositions, and wire
 -- the custody path (producer → truck → silo → railway → ports → vessel).
 setupDemo : Script ()
