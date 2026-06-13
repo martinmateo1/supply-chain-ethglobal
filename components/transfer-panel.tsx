@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import { ArrowLeftRight, X } from "lucide-react"
 
+import { CertificateDropzone } from "@/components/certificate-dropzone"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import {
@@ -19,6 +20,7 @@ import {
   STAGE_META,
   assetKey,
   type Asset,
+  type TransferAttachment,
 } from "@/lib/types"
 import { formatTons } from "@/lib/utils"
 
@@ -59,6 +61,7 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
   const [toAccountId, setToAccountId] = useState("")
   const [selectedAssetId, setSelectedAssetId] = useState("")
   const [quantityStr, setQuantityStr] = useState("")
+  const [attachments, setAttachments] = useState<TransferAttachment[]>([])
   const [submitted, setSubmitted] = useState(false)
 
   const fromAssets = useMemo(
@@ -83,7 +86,13 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
 
   function handleConfirm() {
     if (!canConfirm) return
-    addTransfer({ fromAccountId, toAccountId, assetId: selectedAssetId, quantity })
+    addTransfer({
+      fromAccountId,
+      toAccountId,
+      assetId: selectedAssetId,
+      quantity,
+      attachments,
+    })
     setSubmitted(true)
   }
 
@@ -109,6 +118,9 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
             <p className="font-semibold">Transfer confirmed</p>
             <p className="mt-1 text-sm text-muted-foreground">
               {formatTons(quantity)}t has been transferred successfully.
+              {attachments.length > 0
+                ? ` ${attachments.length} supporting document${attachments.length === 1 ? "" : "s"} attached.`
+                : ""}
             </p>
           </div>
           <Button className="mt-2 w-full" onClick={onClose}>
@@ -230,6 +242,12 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
           </Select>
         </div>
 
+        <CertificateDropzone
+          attachments={attachments}
+          onChange={setAttachments}
+          disabled={!selectedAssetId}
+        />
+
         <div className="rounded-lg bg-muted px-4 py-3 text-sm">
           <p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
             Transfer Summary
@@ -268,6 +286,16 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
             ) : (
               <span className="text-muted-foreground">—</span>
             )}
+          </div>
+          <Separator className="my-1" />
+
+          <div className="flex items-center justify-between gap-3 py-1.5">
+            <span className="text-muted-foreground">Supporting documentation</span>
+            <span className="text-xs font-medium">
+              {attachments.length > 0
+                ? `${attachments.length} attached`
+                : "None"}
+            </span>
           </div>
           <Separator className="my-1" />
 
