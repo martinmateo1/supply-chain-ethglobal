@@ -7,13 +7,14 @@ import {
   SEED_ASSETS,
   SEED_TRANSFERS,
 } from "@/lib/data"
-import type { Account, Asset, Transfer } from "@/lib/types"
+import type { Account, Asset, Transfer, TransferAttachment } from "@/lib/types"
 
 type NewTransferInput = {
   fromAccountId: string
   toAccountId: string
   assetId: string
   quantity: number
+  attachments?: TransferAttachment[]
 }
 
 type TraceabilityState = {
@@ -50,7 +51,13 @@ export const useTraceabilityStore = create<TraceabilityState>()(
       ...initialState,
       selectAccount: (id) => set({ selectedAccountId: id }),
       resetData: () => set(initialState),
-      addTransfer: ({ fromAccountId, toAccountId, assetId, quantity }) => {
+      addTransfer: ({
+        fromAccountId,
+        toAccountId,
+        assetId,
+        quantity,
+        attachments,
+      }) => {
         const state = get()
         const sourceAsset = state.assets.find((a) => a.id === assetId)
         if (!sourceAsset || sourceAsset.accountId !== fromAccountId) return
@@ -102,6 +109,7 @@ export const useTraceabilityStore = create<TraceabilityState>()(
           quantity,
           unit: "tons",
           occurredAt: new Date().toISOString(),
+          ...(attachments && attachments.length > 0 ? { attachments } : {}),
         }
 
         set({ assets: finalAssets, transfers: [...state.transfers, newTransfer] })
@@ -131,10 +139,18 @@ export const useTraceabilityStore = create<TraceabilityState>()(
     }),
     {
       name: "hackathon-traceability",
-      version: 6,
+      version: 7,
       storage: createJSONStorage(() => localStorage),
       migrate: (persistedState, version) => {
         const state = persistedState as PersistedTraceabilityState
+
+        if (version < 7) {
+          return {
+            selectedAccountId: DEFAULT_SELECTED_ACCOUNT_ID,
+            assets: SEED_ASSETS,
+            transfers: SEED_TRANSFERS,
+          }
+        }
 
         if (version < 2) {
           return {
