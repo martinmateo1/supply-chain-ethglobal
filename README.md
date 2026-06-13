@@ -1,6 +1,6 @@
 # Private Commodity Traceability
 
-A supply chain traceability dashboard for certified commodities built at the Bedrock Hackathon. Track coffee beans and cacao across a custody route from origin production through transport, storage, export, ocean shipping, and destination receipt.
+A supply chain traceability dashboard for certified commodities built at the Bedrock Hackathon. Track coffee beans and cacao as custody moves between private company accounts, logistics operators, storage facilities, port terminals, and vessel assets.
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
@@ -11,17 +11,17 @@ A supply chain traceability dashboard for certified commodities built at the Bed
 
 ## What It Does
 
-Private Commodity Traceability lets you follow coffee and cacao lots together across every node in the demo custody flow:
+Private Commodity Traceability lets you follow coffee and cacao lots together across every account in the demo custody flow:
 
 | Stage | Icon | Description |
 |---|---|---|
-| **Production site** | 🌱 | Origin — farm, cooperative, or certified production site |
-| **Truck transport** | 🚛 | First-mile custody handoff from origin to storage |
+| **Production site** | 🌱 | Farm, cooperative, or certified production site |
+| **Truck transport** | 🚛 | Logistics company account moving custody to storage |
 | **Silo** | 🏭 | Storage and aggregation point |
-| **Railway transport** | 🏗️ | Bulk outbound movement from storage to export |
-| **Origin port** | ⚓ | Export terminal loading inventory onto a vessel |
-| **Ship** | ⚓ | Ocean custody leg |
-| **Destination port** | ⚓ | Final inbound receipt point |
+| **Railway transport** | 🏗️ | Logistics company account moving bulk outbound inventory |
+| **Port terminal** | ⚓ | Port operator account holding and loading inventory |
+| **Vessel logistics** | ⚓ | Logistics company account with vessel assets carrying custody |
+| **Receiving port terminal** | ⚓ | Port operator account receiving and holding inbound inventory |
 
 Each account holds **assets** (commodity lots) that carry:
 - **Commodity** — coffee beans or cacao
@@ -36,7 +36,7 @@ Transfers between accounts update the local custody state while preserving the c
 ## Features
 
 - **Combined commodity view** — inspect coffee beans and cacao in the same custody flow
-- **Account explorer** — browse each node in the supply chain route
+- **Account explorer** — browse each company or facility account in the supply chain
 - **Asset ledger** — view current holdings per account with commodity icons and certification badges
 - **Transfer history** — full audit log of custody transfers between nodes
 - **Traceability view** — select any account and see its complete inbound/outbound transfer graph

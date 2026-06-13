@@ -4,8 +4,8 @@ import type {
   Certification,
   CommodityType,
   Rating,
-  Transfer,
 } from "@/lib/types"
+import { withSeedTransferAssetIds } from "@/lib/seed-transfer-assets"
 
 export const SEED_ACCOUNTS: Account[] = [
   {
@@ -18,10 +18,10 @@ export const SEED_ACCOUNTS: Account[] = [
   },
   {
     id: "truck-transport",
-    name: "Truck Transport Co.",
+    name: "Andes Freight Logistics",
     stageType: "truck",
     order: 1,
-    operator: "Truck Transport Co.",
+    operator: "Andes Freight Logistics",
   },
   {
     id: "silo",
@@ -33,33 +33,33 @@ export const SEED_ACCOUNTS: Account[] = [
   },
   {
     id: "railway-transport",
-    name: "Railway Transport Co.",
+    name: "Pacific Rail Logistics",
     stageType: "railway",
     order: 3,
-    operator: "Railway Transport Co.",
+    operator: "Pacific Rail Logistics",
   },
   {
     id: "origin-port",
-    name: "Origin Port Terminal",
+    name: "Buenaventura Port Terminal",
     stageType: "origin-port",
     order: 4,
     location: "Buenaventura Port",
-    operator: "Origin Port Terminal",
+    operator: "Buenaventura Port Terminal",
   },
   {
     id: "ship",
-    name: "Ocean Vessel",
+    name: "Bluewater Logistics",
     stageType: "ship",
     order: 5,
     operator: "Bluewater Shipping",
   },
   {
     id: "destination-port",
-    name: "Destination Port Terminal",
+    name: "Rotterdam Port Terminal",
     stageType: "destination-port",
     order: 6,
     location: "Rotterdam Port",
-    operator: "Destination Port Terminal",
+    operator: "Rotterdam Port Terminal",
   },
 ]
 
@@ -110,7 +110,7 @@ function buildSeedAssets(): Asset[] {
 
 export const SEED_ASSETS = buildSeedAssets()
 
-export const SEED_TRANSFERS: Transfer[] = [
+export const SEED_TRANSFERS = withSeedTransferAssetIds([
   {
     id: "t1",
     fromAccountId: "production-site",
@@ -224,6 +224,6 @@ export const SEED_TRANSFERS: Transfer[] = [
     unit: "tons",
     occurredAt: "2026-06-06T10:45:00.000Z",
   },
-]
+])
 
 export const DEFAULT_SELECTED_ACCOUNT_ID = SEED_ACCOUNTS[0]?.id ?? "production-site"
