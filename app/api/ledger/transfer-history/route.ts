@@ -1,23 +1,18 @@
-import { operationalNodeForPartyView } from "@/lib/demo/party-view-auth"
-import {
-  type CustodySnapshot,
-  transferHistoryForParty,
-} from "@/lib/demo/custody-service"
+import type { CustodySnapshot } from "@/lib/demo/custody-service"
 import { ledgerRouteError, ledgerRouteSuccess } from "@/lib/api/ledger-route"
+import { gatewayTransferHistory } from "@/lib/ledger/gateway"
 
 type RequestBody = {
   partyViewId: string
-  snapshot: CustodySnapshot
+  snapshot?: CustodySnapshot
 }
 
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as RequestBody
-    const nodeId = operationalNodeForPartyView(body.partyViewId)
-    const history = transferHistoryForParty(
-      body.snapshot,
+    const history = await gatewayTransferHistory(
+      body.snapshot ?? { assets: [], transfers: [] },
       body.partyViewId,
-      nodeId
     )
 
     return ledgerRouteSuccess(history)

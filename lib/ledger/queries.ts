@@ -1,4 +1,7 @@
-import { LedgerError, LedgerErrorCode } from "@/lib/ledger/errors"
+import {
+  cantonTransferHistory,
+  cantonVisibleHoldings,
+} from "@/lib/ledger/canton-custody-service"
 
 export type VisibleHoldingsQuery = {
   partyViewId: string
@@ -9,22 +12,9 @@ export type TransferHistoryQuery = {
   lotPositionId?: string
 }
 
-/**
- * Party View-aware ledger queries.
- * Results are mapped to UI domain types via lib/ledger/mappers.ts.
- */
 export const ledgerQueries = {
-  visibleHoldings(_input: VisibleHoldingsQuery): never {
-    throw new LedgerError(
-      LedgerErrorCode.LEDGER_NOT_CONFIGURED,
-      "visibleHoldings is not implemented until Canton query integration lands.",
-    )
-  },
-
-  transferHistory(_input: TransferHistoryQuery): never {
-    throw new LedgerError(
-      LedgerErrorCode.LEDGER_NOT_CONFIGURED,
-      "transferHistory is not implemented until Canton query integration lands.",
-    )
-  },
+  visibleHoldings: (input: VisibleHoldingsQuery) =>
+    cantonVisibleHoldings(input.partyViewId),
+  transferHistory: (input: TransferHistoryQuery) =>
+    cantonTransferHistory(input.partyViewId),
 }

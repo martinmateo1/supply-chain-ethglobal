@@ -25,6 +25,7 @@ import {
   availableQuantityForAsset as computeAvailableQuantity,
   nextDemoAssetId,
 } from "@/lib/demo/custody-service"
+import { isClientCantonBackend } from "@/lib/ledger/client-mode"
 import { withSeedTransferAssetIds } from "@/lib/seed-transfer-assets"
 import type {
   Account,
@@ -337,13 +338,31 @@ export const useTraceabilityStore = create<TraceabilityState>()(
           transfers: normalizeTransfers(state.transfers),
         }
       },
-      partialize: (state) => ({
-        assets: state.assets,
-        transfers: state.transfers,
-        selectedPartyViewId: state.selectedPartyViewId,
-      }),
+      partialize: (state) => {
+        if (isClientCantonBackend()) {
+          return { selectedPartyViewId: state.selectedPartyViewId }
+        }
+
+        return {
+          assets: state.assets,
+          transfers: state.transfers,
+          selectedPartyViewId: state.selectedPartyViewId,
+        }
+      },
       merge: (persisted, current) => {
         const persistedState = persisted as PersistedTraceabilityState | undefined
+
+        if (isClientCantonBackend()) {
+          return {
+            ...current,
+            assets: [],
+            transfers: [],
+            selectedPartyViewId:
+              persistedState?.selectedPartyViewId ??
+              persistedState?.selectedAccountId ??
+              current.selectedPartyViewId,
+          }
+        }
 
         return {
           ...current,

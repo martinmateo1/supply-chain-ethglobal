@@ -1,10 +1,231 @@
 module Test.TraceabilityTest where
 
+import Commodity.LotPosition
+import Commodity.Types
 import Daml.Script
 
--- TODO (Story 3.4+): quantity conservation across split/combine/transfer.
--- TODO (Story 3.4+ / scripts/attempt-double-spend.ts): negative test proving a
--- consumed SourceAssetReference quantity cannot be spent twice.
-testTraceabilityPlaceholder : Script ()
-testTraceabilityPlaceholder = script do
+-- Happy path: create lot → initiate transfer → accept.
+testCustodyHappyPath : Script ()
+testCustodyHappyPath = script do
+  sender <- allocateParty "Sender"
+  receiver <- allocateParty "Receiver"
+
+  lotCid <- submit sender do
+    createCmd LotPosition with
+      owner = sender
+      lotId = "lot-happy-1"
+      commodity = Coffee
+      quantity = Quantity 100.0 "tons"
+      certifications = [NonGMO, DeforestationFree]
+      quality = GradeA
+      originIdentifier = Some "origin-huila-001"
+
+  (transferCid, remainder) <- submit sender do
+    exerciseCmd lotCid InitiateTransfer with
+      receiver
+      transferId = "t-happy-1"
+      transferAmount = 40.0
+      evidenceHashes = ["0xabc123"]
+
+  case remainder of
+    Some remCid -> do
+      remOpt <- queryContractId sender remCid
+      case remOpt of
+        Some rem -> assertMsg "Remainder quantity wrong" (rem.quantity.amount == 60.0)
+        None -> abort "Remainder lot not found"
+    None -> abort "Expected remainder lot after partial transfer"
+
+  receiverLotCid <- submit receiver do
+    exerciseCmd transferCid AcceptTransfer
+
+  receiverLotOpt <- queryContractId receiver receiverLotCid
+  case receiverLotOpt of
+    Some receiverLot -> do
+      assertMsg "Receiver lot quantity wrong" (receiverLot.quantity.amount == 40.0)
+      assertMsg "Receiver lot commodity wrong" (receiverLot.commodity == Coffee)
+      assertMsg "Provenance not preserved" (receiverLot.originIdentifier == Some "origin-huila-001")
+    None -> abort "Receiver lot not found after accept"
+
+  pure ()
+
+-- Negative: the source lot is consumed on initiate, so it cannot be
+-- re-spent (anti-double-spend). The remainder is a *separate* valid position.
+testDoubleSpendBlocked : Script ()
+testDoubleSpendBlocked = script do
+  sender <- allocateParty "Sender"
+  receiver <- allocateParty "Receiver"
+
+  lotCid <- submit sender do
+    createCmd LotPosition with
+      owner = sender
+      lotId = "lot-ds-1"
+      commodity = Cacao
+      quantity = Quantity 50.0 "tons"
+      certifications = [DeforestationFree]
+      quality = GradeB
+      originIdentifier = None
+
+  (transferCid, remainder) <- submit sender do
+    exerciseCmd lotCid InitiateTransfer with
+      receiver
+      transferId = "t-ds-1"
+      transferAmount = 30.0
+      evidenceHashes = []
+
+  -- Conservation: reserved 30 + remainder 20 == original 50.
+  remCid <- case remainder of
+    Some cid -> pure cid
+    None -> abort "Expected remainder lot"
+
+  remOpt <- queryContractId sender remCid
+  case remOpt of
+    Some rem -> assertMsg "Remainder must be 20" (rem.quantity.amount == 20.0)
+    None -> abort "Remainder lot not found"
+
+  -- The remainder is a fresh, spendable position: spending it up to its
+  -- amount succeeds (proves the failure below is double-spend, not a generic
+  -- "amount too large" rejection).
+  (_, _) <- submit sender do
+    exerciseCmd remCid InitiateTransfer with
+      receiver
+      transferId = "t-ds-remainder"
+      transferAmount = 20.0
+      evidenceHashes = []
+
+  -- Double-spend: the ORIGINAL lot was archived on the first initiate, so a
+  -- second initiate on it must fail because the contract no longer exists.
+  submitMustFail sender do
+    exerciseCmd lotCid InitiateTransfer with
+      receiver
+      transferId = "t-ds-orphan"
+      transferAmount = 10.0
+      evidenceHashes = []
+
+  pendingOpt <- queryContractId sender transferCid
+  case pendingOpt of
+    Some pending -> assertMsg "Transfer should still be pending" (pending.status == Pending)
+    None -> abort "Pending transfer not found"
+
+  pure ()
+
+-- Guard: a transfer cannot be accepted twice (consumed on accept).
+testCannotAcceptTwice : Script ()
+testCannotAcceptTwice = script do
+  sender <- allocateParty "Sender"
+  receiver <- allocateParty "Receiver"
+
+  lotCid <- submit sender do
+    createCmd LotPosition with
+      owner = sender
+      lotId = "lot-accept2"
+      commodity = Coffee
+      quantity = Quantity 10.0 "tons"
+      certifications = [NonGMO]
+      quality = GradeA
+      originIdentifier = None
+
+  (transferCid, _) <- submit sender do
+    exerciseCmd lotCid InitiateTransfer with
+      receiver
+      transferId = "t-accept2"
+      transferAmount = 10.0
+      evidenceHashes = []
+
+  _ <- submit receiver do
+    exerciseCmd transferCid AcceptTransfer
+
+  submitMustFail receiver do
+    exerciseCmd transferCid AcceptTransfer
+
+  pure ()
+
+-- Guard: a rejected transfer cannot then be accepted (consumed on reject).
+testCannotAcceptAfterReject : Script ()
+testCannotAcceptAfterReject = script do
+  sender <- allocateParty "Sender"
+  receiver <- allocateParty "Receiver"
+
+  lotCid <- submit sender do
+    createCmd LotPosition with
+      owner = sender
+      lotId = "lot-rej-accept"
+      commodity = Coffee
+      quantity = Quantity 10.0 "tons"
+      certifications = [NonGMO]
+      quality = GradeA
+      originIdentifier = None
+
+  (transferCid, _) <- submit sender do
+    exerciseCmd lotCid InitiateTransfer with
+      receiver
+      transferId = "t-rej-accept"
+      transferAmount = 10.0
+      evidenceHashes = []
+
+  _ <- submit receiver do
+    exerciseCmd transferCid RejectTransfer
+
+  submitMustFail receiver do
+    exerciseCmd transferCid AcceptTransfer
+
+  pure ()
+
+-- Guard: transfer amount must be strictly positive.
+testTransferAmountMustBePositive : Script ()
+testTransferAmountMustBePositive = script do
+  sender <- allocateParty "Sender"
+  receiver <- allocateParty "Receiver"
+
+  lotCid <- submit sender do
+    createCmd LotPosition with
+      owner = sender
+      lotId = "lot-pos-1"
+      commodity = Coffee
+      quantity = Quantity 10.0 "tons"
+      certifications = [NonGMO]
+      quality = GradeA
+      originIdentifier = None
+
+  submitMustFail sender do
+    exerciseCmd lotCid InitiateTransfer with
+      receiver
+      transferId = "t-pos-zero"
+      transferAmount = 0.0
+      evidenceHashes = []
+
+  pure ()
+
+-- Reject releases reserved quantity back to sender.
+testRejectReleasesQuantity : Script ()
+testRejectReleasesQuantity = script do
+  sender <- allocateParty "Sender"
+  receiver <- allocateParty "Receiver"
+
+  lotCid <- submit sender do
+    createCmd LotPosition with
+      owner = sender
+      lotId = "lot-reject-1"
+      commodity = Coffee
+      quantity = Quantity 25.0 "tons"
+      certifications = [NonGMO]
+      quality = GradeC
+      originIdentifier = Some "origin-reject"
+
+  (transferCid, _) <- submit sender do
+    exerciseCmd lotCid InitiateTransfer with
+      receiver
+      transferId = "t-reject-1"
+      transferAmount = 25.0
+      evidenceHashes = ["0xreject"]
+
+  returnedCid <- submit receiver do
+    exerciseCmd transferCid RejectTransfer
+
+  returnedOpt <- queryContractId sender returnedCid
+  case returnedOpt of
+    Some returned -> do
+      assertMsg "Rejected quantity not returned to sender" (returned.quantity.amount == 25.0)
+      assertMsg "Returned lot owner wrong" (returned.owner == sender)
+    None -> abort "Returned lot not found after reject"
+
   pure ()

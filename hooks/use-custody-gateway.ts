@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react"
 
+import { useLedgerConfig } from "@/hooks/use-ledger-config"
 import type { ApiResponse } from "@/lib/api/response"
 import type { CustodySnapshot } from "@/lib/demo/custody-service"
 import type { InitiateTransferRequest } from "@/lib/demo/custody-service"
@@ -21,7 +22,7 @@ type GatewayError = {
 
 async function postCustody<T>(
   path: string,
-  body: unknown
+  body: unknown,
 ): Promise<{ data?: T; error?: GatewayError }> {
   const response = await fetch(path, {
     method: "POST",
@@ -41,18 +42,19 @@ export function useCustodyGateway() {
   const assets = useTraceabilityStore((state) => state.assets)
   const transfers = useTraceabilityStore((state) => state.transfers)
   const selectedPartyViewId = useTraceabilityStore(
-    (state) => state.selectedPartyViewId
+    (state) => state.selectedPartyViewId,
   )
   const applyCustodySnapshot = useTraceabilityStore(
-    (state) => state.applyCustodySnapshot
+    (state) => state.applyCustodySnapshot,
   )
 
+  const { isCantonBackend: isCanton } = useLedgerConfig()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const getSnapshot = useCallback(
     (): CustodySnapshot => ({ assets, transfers }),
-    [assets, transfers]
+    [assets, transfers],
   )
 
   const initiateTransfer = useCallback(
@@ -66,15 +68,18 @@ export function useCustodyGateway() {
       setIsSubmitting(true)
       setError(null)
 
-      const request: InitiateTransferRequest & { snapshot: CustodySnapshot } = {
+      const request: InitiateTransferRequest & { snapshot?: CustodySnapshot } = {
         partyViewId: selectedPartyViewId,
-        snapshot: getSnapshot(),
         ...input,
+      }
+
+      if (!isCanton) {
+        request.snapshot = getSnapshot()
       }
 
       const { data, error: gatewayError } = await postCustody<CustodyMutationResult>(
         "/api/ledger/initiate-transfer",
-        request
+        request,
       )
 
       setIsSubmitting(false)
@@ -93,7 +98,7 @@ export function useCustodyGateway() {
       setError(fallback)
       return { ok: false as const, error: fallback }
     },
-    [applyCustodySnapshot, getSnapshot, selectedPartyViewId]
+    [applyCustodySnapshot, getSnapshot, isCanton, selectedPartyViewId],
   )
 
   const acceptTransfer = useCallback(
@@ -101,13 +106,19 @@ export function useCustodyGateway() {
       setIsSubmitting(true)
       setError(null)
 
-      const { data, error: gatewayError } = await postCustody<CustodyMutationResult>(
-        "/api/ledger/accept-transfer",
+      const body: { partyViewId: string; transferId: string; snapshot?: CustodySnapshot } =
         {
           partyViewId: selectedPartyViewId,
           transferId,
-          snapshot: getSnapshot(),
         }
+
+      if (!isCanton) {
+        body.snapshot = getSnapshot()
+      }
+
+      const { data, error: gatewayError } = await postCustody<CustodyMutationResult>(
+        "/api/ledger/accept-transfer",
+        body,
       )
 
       setIsSubmitting(false)
@@ -126,7 +137,7 @@ export function useCustodyGateway() {
       setError(fallback)
       return { ok: false as const, error: fallback }
     },
-    [applyCustodySnapshot, getSnapshot, selectedPartyViewId]
+    [applyCustodySnapshot, getSnapshot, isCanton, selectedPartyViewId],
   )
 
   const rejectTransfer = useCallback(
@@ -134,13 +145,19 @@ export function useCustodyGateway() {
       setIsSubmitting(true)
       setError(null)
 
-      const { data, error: gatewayError } = await postCustody<CustodyMutationResult>(
-        "/api/ledger/reject-transfer",
+      const body: { partyViewId: string; transferId: string; snapshot?: CustodySnapshot } =
         {
           partyViewId: selectedPartyViewId,
           transferId,
-          snapshot: getSnapshot(),
         }
+
+      if (!isCanton) {
+        body.snapshot = getSnapshot()
+      }
+
+      const { data, error: gatewayError } = await postCustody<CustodyMutationResult>(
+        "/api/ledger/reject-transfer",
+        body,
       )
 
       setIsSubmitting(false)
@@ -159,7 +176,7 @@ export function useCustodyGateway() {
       setError(fallback)
       return { ok: false as const, error: fallback }
     },
-    [applyCustodySnapshot, getSnapshot, selectedPartyViewId]
+    [applyCustodySnapshot, getSnapshot, isCanton, selectedPartyViewId],
   )
 
   return {
@@ -169,5 +186,6 @@ export function useCustodyGateway() {
     isSubmitting,
     error,
     clearError: () => setError(null),
+    isCantonBackend: isCanton,
   }
 }

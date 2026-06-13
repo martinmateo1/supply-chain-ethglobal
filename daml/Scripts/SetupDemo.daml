@@ -1,9 +1,85 @@
 module Scripts.SetupDemo where
 
+import Commodity.LotPosition
+import Commodity.Types
+import DA.Foldable (forA_)
+import DA.List ((!!))
 import Daml.Script
 
--- TODO (Story 1.3+): allocate demo parties, create seed LotPositions, and wire
--- the custody path (producer → truck → silo → railway → ports → vessel).
+commodityAt : Int -> CommodityKind
+commodityAt i = if i == 0 || i == 2 then Coffee else Cacao
+
+certsAt : Int -> [Certification]
+certsAt i = case i of
+  0 -> [NonGMO, DeforestationFree]
+  1 -> [NonGMO]
+  2 -> [DeforestationFree]
+  _ -> [NonGMO, DeforestationFree]
+
+qualityAt : Int -> QualityGrade
+qualityAt i = case i of
+  0 -> GradeA
+  1 -> GradeB
+  2 -> GradeC
+  _ -> GradeA
+
+quantityAt : Int -> Decimal
+quantityAt i = intToDecimal (12000 + i * 1750)
+
+data DemoNode = DemoNode
+  { nodeId : Text
+  , displayName : Text
+  }
+  deriving (Eq, Show)
+
+demoNodes : [DemoNode]
+demoNodes =
+  [ DemoNode "production-site" "Origin Cooperative"
+  , DemoNode "truck-transport" "Andes Freight Logistics"
+  , DemoNode "silo" "Silo Storage Co."
+  , DemoNode "railway-transport" "Pacific Rail Logistics"
+  , DemoNode "origin-port" "Buenaventura Port Terminal"
+  , DemoNode "ship" "Bluewater Logistics"
+  , DemoNode "destination-port" "Rotterdam Port Terminal"
+  ]
+
+lotsPerNode : Int
+lotsPerNode = 3
+
+allocateDemoParties : Script [(Text, Party)]
+allocateDemoParties = do
+  parties <- mapA (\node -> do
+    party <- allocatePartyByHint (PartyIdHint node.nodeId)
+    return (node.nodeId, party)
+    ) demoNodes
+  forA_ parties (\(nodeId, party) -> debug $ "DEMO_PARTY " <> nodeId <> "=" <> show party)
+  return parties
+
+createSeedLots : [(Text, Party)] -> Script [ContractId LotPosition]
+createSeedLots parties = do
+  let partyFor nodeId = case lookup nodeId parties of
+        Some p -> p
+        None -> error ("Unknown demo node: " <> nodeId)
+      slots = [(order, index) | order <- [0 .. length demoNodes - 1], index <- [0 .. lotsPerNode - 1]]
+  mapA (\(order, index) -> do
+    let node = demoNodes !! order
+        owner = partyFor node.nodeId
+        lotId = "a" <> show (order * 100 + index)
+        pick = order + index
+    submit owner do
+      createCmd LotPosition with
+        owner
+        lotId
+        commodity = commodityAt pick
+        quantity = Quantity (quantityAt pick) "tons"
+        certifications = certsAt pick
+        quality = qualityAt pick
+        originIdentifier = None
+    ) slots
+
 setupDemo : Script ()
 setupDemo = script do
+  parties <- allocateDemoParties
+  lotCids <- createSeedLots parties
+  debug $ "SetupDemo complete: " <> show (length parties) <> " parties, " <> show (length lotCids) <> " lots"
   pure ()

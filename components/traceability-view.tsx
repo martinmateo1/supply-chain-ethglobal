@@ -20,6 +20,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion"
 import { useCustodyGateway } from "@/hooks/use-custody-gateway"
+import { useLedgerSync } from "@/hooks/use-ledger-sync"
 import {
   DEMO_PARTY_VIEWS,
   isRoutePartyView,
@@ -61,6 +62,7 @@ export function TraceabilityView() {
   )
 
   const { acceptTransfer, rejectTransfer } = useCustodyGateway()
+  const { isCantonBackend, isSyncing, syncError } = useLedgerSync()
 
   const [transferActionState, setTransferActionState] = useState<{
     transferId: string
@@ -81,7 +83,12 @@ export function TraceabilityView() {
   const visibleTotalTons = partyViewVisibleTotalTons(selectedPartyViewId)
   const operationalNodeId = selectedPartyView?.operationalNodeId ?? null
   const canTransfer = Boolean(operationalNodeId) && !privacyProof
+  // Client-side lot origination is a demo-only affordance. Under the Canton
+  // backend, lots are authored on the ledger (SetupDemo seeding); exposing the
+  // client-only "Create Lot" panel there would write state the next ledger
+  // sync silently overwrites, so it is hidden until createLot is ledger-backed.
   const canCreateLot =
+    !isCantonBackend &&
     selectedPartyView?.companyRole === "producer" &&
     operationalNodeId === "production-site"
 
@@ -214,6 +221,15 @@ export function TraceabilityView() {
               selectedPartyViewId={selectedPartyViewId}
               onSelectPartyView={handleSelectPartyView}
             />
+
+            {isCantonBackend ? (
+              <p className="text-muted-foreground mb-4 text-sm">
+                {isSyncing
+                  ? "Refreshing holdings from Canton…"
+                  : "Holdings and pending transfers are read from the Canton ledger."}
+                {syncError ? ` ${syncError}` : null}
+              </p>
+            ) : null}
 
             {selectedPartyView ? (
               <PrivacyCallout partyView={selectedPartyView} />

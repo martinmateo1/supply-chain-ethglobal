@@ -1,4 +1,10 @@
+import {
+  cantonAcceptTransfer,
+  cantonInitiateTransfer,
+  cantonRejectTransfer,
+} from "@/lib/ledger/canton-custody-service"
 import { LedgerError, LedgerErrorCode } from "@/lib/ledger/errors"
+import type { InitiateTransferRequest, TransferActionRequest } from "@/lib/demo/custody-service"
 
 export type CreateLotCommand = {
   partyId: string
@@ -11,55 +17,22 @@ export type CreateLotCommand = {
   originEvidenceHashes?: string[]
 }
 
-export type InitiateTransferCommand = {
-  fromPartyId: string
-  toPartyId: string
-  lotPositionId: string
-  amount: string
-  unit: string
-  evidenceHashes?: string[]
-}
+export type InitiateTransferCommand = InitiateTransferRequest
+export type AcceptTransferCommand = TransferActionRequest
+export type RejectTransferCommand = TransferActionRequest
 
-export type AcceptTransferCommand = {
-  partyId: string
-  transferId: string
-}
-
-export type RejectTransferCommand = {
-  partyId: string
-  transferId: string
-}
-
-/**
- * Command construction for ledger workflows.
- * Browser code must not call these directly — use app/api/ledger/* routes.
- */
 export const ledgerCommands = {
+  // Intentionally unimplemented on the Canton path: origin lots are provisioned
+  // via SetupDemo seeding, and the UI's create-lot panel is hidden when
+  // LEDGER_BACKEND=canton (see traceability-view `canCreateLot`). Wiring this to
+  // a Daml `create LotPosition` command is tracked as Epic 5 follow-up.
   createLot(_input: CreateLotCommand): never {
     throw new LedgerError(
-      LedgerErrorCode.LEDGER_NOT_CONFIGURED,
-      "createLot is not implemented until Canton contracts and gateway routes land (Epic 1.3+).",
+      LedgerErrorCode.LEDGER_COMMAND_FAILED,
+      "Creating lots on the Canton ledger is not available yet. Origin lots are provisioned via SetupDemo seeding.",
     )
   },
-
-  initiateTransfer(_input: InitiateTransferCommand): never {
-    throw new LedgerError(
-      LedgerErrorCode.LEDGER_NOT_CONFIGURED,
-      "initiateTransfer Canton path is not wired — use app/api/ledger/initiate-transfer (demo adapter).",
-    )
-  },
-
-  acceptTransfer(_input: AcceptTransferCommand): never {
-    throw new LedgerError(
-      LedgerErrorCode.LEDGER_NOT_CONFIGURED,
-      "acceptTransfer Canton path is not wired — use app/api/ledger/accept-transfer (demo adapter).",
-    )
-  },
-
-  rejectTransfer(_input: RejectTransferCommand): never {
-    throw new LedgerError(
-      LedgerErrorCode.LEDGER_NOT_CONFIGURED,
-      "rejectTransfer Canton path is not wired — use app/api/ledger/reject-transfer (demo adapter).",
-    )
-  },
+  initiateTransfer: cantonInitiateTransfer,
+  acceptTransfer: cantonAcceptTransfer,
+  rejectTransfer: cantonRejectTransfer,
 }

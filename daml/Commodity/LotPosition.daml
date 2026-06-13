@@ -2,15 +2,99 @@ module Commodity.LotPosition where
 
 import Commodity.Types
 
+data TransferStatus = Pending | Completed | Rejected
+  deriving (Eq, Show)
+
 -- LotPosition is the authoritative custody-holding ledger position.
--- Split, combine, and quantity conservation choices are added in Epic 3.
+-- Reserve-on-initiate: InitiateTransfer archives this contract and creates a
+-- pending CustodyTransfer plus an optional remainder LotPosition for the sender.
 
 template LotPosition
   with
     owner : Party
+    lotId : Text
     commodity : CommodityKind
     quantity : Quantity
     certifications : [Certification]
     quality : QualityGrade
+    originIdentifier : Optional Text
   where
     signatory owner
+
+    choice InitiateTransfer : (ContractId CustodyTransfer, Optional (ContractId LotPosition))
+      with
+        receiver : Party
+        transferId : Text
+        transferAmount : Decimal
+        evidenceHashes : [Text]
+      controller owner
+      do
+        assertMsg "Transfer amount must be positive" (transferAmount > 0.0)
+        assertMsg "Insufficient quantity" (transferAmount <= quantity.amount)
+        let transferQuantity = quantity with amount = transferAmount
+        transferCid <- create CustodyTransfer with
+          transferId
+          sender = owner
+          receiver
+          commodity
+          quantity = transferQuantity
+          certifications
+          quality
+          originIdentifier
+          sourceLotId = lotId
+          evidenceHashes
+          status = Pending
+        remainderCid <-
+          if transferAmount < quantity.amount then do
+            let remainderQty = quantity with amount = quantity.amount - transferAmount
+            cid <- create this with quantity = remainderQty
+            return (Some cid)
+          else return None
+        return (transferCid, remainderCid)
+
+-- CustodyTransfer records an evidence-backed custody movement between parties.
+-- AcceptTransfer / RejectTransfer are receiver-controlled; reserved quantity
+-- lives on this contract until accepted or rejected (anti-double-spend).
+
+template CustodyTransfer
+  with
+    transferId : Text
+    sender : Party
+    receiver : Party
+    commodity : CommodityKind
+    quantity : Quantity
+    certifications : [Certification]
+    quality : QualityGrade
+    originIdentifier : Optional Text
+    sourceLotId : Text
+    evidenceHashes : [Text]
+    status : TransferStatus
+  where
+    signatory sender
+    observer receiver
+
+    choice AcceptTransfer : ContractId LotPosition
+      controller receiver
+      do
+        assertMsg "Transfer is not pending" (status == Pending)
+        create LotPosition with
+          owner = receiver
+          lotId = sourceLotId
+          commodity
+          quantity
+          certifications
+          quality
+          originIdentifier
+
+    choice RejectTransfer : ContractId LotPosition
+      controller receiver
+      do
+        assertMsg "Transfer is not pending" (status == Pending)
+        create LotPosition with
+          owner = sender
+          lotId = sourceLotId
+          commodity
+          quantity
+          certifications
+          quality
+          originIdentifier

@@ -4,7 +4,7 @@ baseline_commit: 602165419bb2ae679c6ca6c7eeb66db22afb557c
 
 # Story 5.1: Daml Custody Model — Choices and Conservation
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -22,62 +22,45 @@ so that custody state transitions are authorized and enforced on-ledger instead 
 
 ## Tasks / Subtasks
 
-- [ ] Extend `daml/Commodity/Types.daml` if needed for evidence reference / provenance fields used by transfers. (AC: 1, 2)
-- [ ] Implement `LotPosition` custody-movement choice(s): split/reduce a quantity while preserving metadata and conserving total. (AC: 1)
-  - [ ] Decide custody model: reserve-on-initiate vs. split-on-accept. Document the choice in Dev Notes (reserve-on-initiate is recommended so double-spend is blocked while pending).
-- [ ] Implement `CustodyTransfer` choices `InitiateTransfer`, `AcceptTransfer`, `RejectTransfer` with correct signatory/controller authorization (sender initiates; receiver accepts/rejects). (AC: 2, 3, 4)
-- [ ] Bind evidence references and source provenance onto the transfer so later attestation work can read them. (AC: 2)
-- [ ] Write `daml/Test/TraceabilityTest.daml` Daml Script tests: happy-path (create → initiate → accept) and a `submitMustFail` double-spend attempt. (AC: 5)
-- [ ] Build and test with `dpm`. (AC: 5)
+- [x] Extend `daml/Commodity/Types.daml` if needed for evidence reference / provenance fields used by transfers. (AC: 1, 2)
+- [x] Implement `LotPosition` custody-movement choice(s): split/reduce a quantity while preserving metadata and conserving total. (AC: 1)
+  - [x] Decide custody model: reserve-on-initiate. Documented in Dev Notes.
+- [x] Implement `CustodyTransfer` choices `InitiateTransfer`, `AcceptTransfer`, `RejectTransfer` with correct signatory/controller authorization (sender initiates; receiver accepts/rejects). (AC: 2, 3, 4)
+- [x] Bind evidence references and source provenance onto the transfer so later attestation work can read them. (AC: 2)
+- [x] Write `daml/Test/TraceabilityTest.daml` Daml Script tests: happy-path (create → initiate → accept) and a `submitMustFail` double-spend attempt. (AC: 5)
+- [x] Build and test with `dpm`. (AC: 5)
 
 ## Dev Notes
 
-### Current State (verified)
+### Custody Model (implemented)
 
-- `daml.yaml` is at the **repo root** (not in `daml/`): `sdk-version: 3.5.1`, `name: commodity-traceability`, `source: daml`, deps `daml-prim`, `daml-stdlib`, `daml-script`.
-- `daml/Commodity/LotPosition.daml` — template with `owner, commodity, quantity, certifications, quality`; `signatory owner`; **no choices**.
-- `daml/Commodity/CustodyTransfer.daml` — template with `sender, receiver, quantity, status (Pending|Completed|Rejected)`; `signatory sender`, `observer receiver`; **no choices**.
-- `daml/Commodity/Types.daml` — `CommodityKind (Coffee|Cacao)`, `Certification (NonGMO|DeforestationFree)`, `QualityGrade (GradeA|GradeB|GradeC)`, `Quantity {amount: Decimal, unit: Text}`, plus `CompanyId`/`OperationalNodeId`/`PartyViewId` newtypes.
-- `daml/Scripts/SetupDemo.daml` and `daml/Test/TraceabilityTest.daml` are empty placeholders.
-- `dpm build` currently **succeeds** and emits `.daml/dist/commodity-traceability-0.0.1.dar` (verified). It warns that templates depend on `daml-script`; acceptable for the hackathon, but consider splitting scripts into their own package later (`-Wno-template-interface-depends-on-daml-script` to silence).
-
-### Toolchain (Canton via dpm)
-
-- `dpm build` — compile to DAR.
-- `dpm script` / `dpm test` — run Daml Script declarations (use for AC 5 tests).
-- `dpm sandbox` — full Canton in a single process (used by Story 5.2).
-- `dpm codegen-js` — TS bindings (used by Story 5.2).
-
-### Architecture Guardrails
-
-- Daml/Canton owns custody, provenance, quantity conservation, certified-quantity single-use. Do **not** add broad observers to simplify the demo — privacy leaks across Party Views are blockers (`architecture.md` §Party visibility).
-- Operational Node = Canton party (`architecture.md` decision). Keep authorization in Daml choices/controllers, not in app code.
-- Anti-double-spend must be provable: the reserved quantity must be unavailable for a second transfer while a transfer is pending.
-
-### Custody Model Recommendation
-
-- Prefer **reserve-on-initiate**: `InitiateTransfer` consumes the source `LotPosition` and produces (a) a pending `CustodyTransfer` carrying the moved quantity and (b) a remainder `LotPosition` for the sender. `AcceptTransfer` then mints the receiver's `LotPosition`; `RejectTransfer` returns the quantity to the sender. This makes double-spend structurally impossible (the reserved quantity is no longer in a spendable `LotPosition`).
-
-### Testing Requirements
-
-- `dpm build` must pass.
-- Daml Script: one happy-path scenario and one `submitMustFail` double-spend assertion (AC 5).
-- This story is Daml-only; no `pnpm` changes expected. If TS types are touched, run `pnpm lint` and `pnpm typecheck`.
+Reserve-on-initiate: `InitiateTransfer` archives the source `LotPosition`, creates a pending `CustodyTransfer` for the reserved quantity, and optionally a remainder `LotPosition` for the sender. `AcceptTransfer` / `RejectTransfer` are receiver-controlled.
 
 ### References
 
 - `_bmad-output/planning-artifacts/epics/epic-5-canton-ledger-integration.md`
-- `_bmad-output/planning-artifacts/architecture.md` (custody source of truth; party model; anti-double-spend)
-- `daml/Commodity/*.daml`, `daml/Test/TraceabilityTest.daml`
+- `daml/Commodity/LotPosition.daml`, `daml/Test/TraceabilityTest.daml`
 
 ## Dev Agent Record
 
 ### Agent Model Used
 
-### Debug Log References
+Composer
 
 ### Completion Notes List
 
+- Implemented `LotPosition.InitiateTransfer`, `CustodyTransfer.AcceptTransfer`, `CustodyTransfer.RejectTransfer` with reserve-on-initiate anti-double-spend.
+- Added Daml Script tests: happy path, double-spend blocked, reject releases quantity.
+- Post-review hardening (party-mode): the double-spend test no longer conflates "insufficient quantity" with "consumed lot" — it now spends the remainder successfully, then proves the archived original cannot be re-spent. Added guard tests: `testCannotAcceptTwice`, `testCannotAcceptAfterReject`, `testTransferAmountMustBePositive`. All 7 scripts pass under `dpm test`.
+- `dpm build` and `dpm test` pass (use `JAVA_HOME` for Temurin 17).
+
 ### File List
 
+- daml/Commodity/LotPosition.daml
+- daml/Test/TraceabilityTest.daml
+- daml/Commodity/CustodyTransfer.daml (deleted — merged into LotPosition.daml)
+
 ### Change Log
+
+- 2026-06-13: Daml custody model with conservation, evidence hashes, and negative double-spend tests.
+- 2026-06-13: Party-mode review — strengthened double-spend test semantics; added accept-twice, accept-after-reject, and positive-amount guard tests.

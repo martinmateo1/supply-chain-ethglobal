@@ -16,9 +16,9 @@ so that custody state changes are authorized, traceable, and not dependent on cl
 
 1. **Given** the user submits a create-transfer, accept-transfer, or reject-transfer action, **when** the app processes the request, **then** the browser calls a named Next.js gateway action or route rather than constructing raw Canton commands, **and** the response uses the shared success/error envelope. — **MET**
 2. **Given** a Party View is active, **when** a custody action is submitted, **then** the gateway maps the UI Party View to the correct Canton party or demo equivalent, **and** unauthorized party/action combinations are rejected. — **MET**
-3. **Given** custody state is returned to the UI, **when** holdings or transfer history are refreshed, **then** ledger-derived data is treated as authoritative, **and** client state stores only UI/demo state such as active Party View, filters, and transient form data. — **PARTIAL (MVP demo)**
-   - **Met today:** custody mutations flow through `/api/ledger/*`; components do not construct Canton commands; `lib/demo/custody-service.ts` owns business rules server-side.
-   - **Not met (deferred to Canton migration):** the client still persists `assets` + `transfers` in `localStorage` and sends a client-owned `snapshot` on each request. The gateway is a stateless validator/reducer, not the authoritative custody store. This is an intentional MVP trade-off documented below — not a claim of ledger authority.
+3. **Given** custody state is returned to the UI, **when** holdings or transfer history are refreshed, **then** ledger-derived data is treated as authoritative, **and** client state stores only UI/demo state such as active Party View, filters, and transient form data. — **IMPLEMENTED & SCRIPT-VERIFIED for Canton path** (`LEDGER_BACKEND=canton`, Epic 5.4) — verified via `ledger:verify-demo-flow` + gateway unit tests; **no automated UI E2E yet**. **PARTIAL for demo fallback** (`LEDGER_BACKEND=demo` retains client snapshot round-trip).
+   - **Canton path (Epic 5):** holdings and pending transfers are fetched from `/api/ledger/visible-holdings` and `/api/ledger/transfer-history`; Zustand persists only `selectedPartyViewId`.
+   - **Demo path:** client still persists `assets` + `transfers` in `localStorage` and sends a client-owned `snapshot` on each request.
 4. **Given** the gateway returns lot, transfer, evidence, provenance event, or attestation payloads, **when** the UI consumes the response, **then** the payloads conform to documented data shapes for revealed and hidden fields, **and** client code does not infer private fields from missing or redacted data. — **MET**
 5. **Given** a transfer action fails because of insufficient quantity, unauthorized party, invalid evidence, or ledger failure, **when** the UI displays the error, **then** the user sees a stable, actionable error message, **and** no private details from other parties are exposed. — **MET**
 6. **Given** the current implementation still uses seeded/local demo state, **when** this story is implemented in MVP mode, **then** the code clearly separates demo adapters from future Canton-backed gateway boundaries, **and** no story depends on broad client-side custody authority as the long-term source of truth. — **MET**
@@ -27,7 +27,7 @@ so that custody state changes are authorized, traceable, and not dependent on cl
 
 - [x] Add `lib/api/response.ts` `ApiResponse<T>` envelope and `lib/api/ledger-route.ts` helpers. (AC: 1, 5)
 - [x] Create gateway routes: `initiate-transfer`, `accept-transfer`, `reject-transfer`, `transfer-history`. (AC: 1, 2)
-- [ ] Treat ledger-derived custody as authoritative server state; client persists UI state only. (AC: 3) — **Deferred:** requires Canton-backed store or server-side demo state; MVP uses client snapshot round-trip by design.
+- [x] Treat ledger-derived custody as authoritative server state; client persists UI state only. (AC: 3) — **MET for Canton path** (Epic 5.4); demo adapter remains flagged fallback.
 - [x] Centralize custody rules in `lib/demo/custody-service.ts`; UI applies gateway-returned snapshots via `applyCustodySnapshot`. (AC: 6)
 - [x] Add `lib/demo/party-view-auth.ts` for Party View → operational node authorization. (AC: 2, 5)
 - [x] Extend `lib/ledger/commands.ts` stubs documenting Canton vs demo adapter paths. (AC: 6)
