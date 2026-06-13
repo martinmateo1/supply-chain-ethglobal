@@ -1,0 +1,27 @@
+module Commodity.Types where
+
+-- Shared domain types aligned with PRD glossary terms.
+
+data CommodityKind = Coffee | Cacao
+  deriving (Eq, Show)
+
+data Certification = NonGMO | DeforestationFree
+  deriving (Eq, Show)
+
+data QualityGrade = GradeA | GradeB | GradeC
+  deriving (Eq, Show)
+
+data Quantity = Quantity
+  { amount : Decimal
+  , unit : Text
+  }
+  deriving (Eq, Show)
+
+data CompanyId = CompanyId Text
+  deriving (Eq, Show)
+
+data OperationalNodeId = OperationalNodeId Text
+  deriving (Eq, Show)
+
+data PartyViewId = PartyViewId Text
+  deriving (Eq, Show)

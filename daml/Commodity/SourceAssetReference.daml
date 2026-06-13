@@ -1,0 +1,18 @@
+module Commodity.SourceAssetReference where
+
+import Commodity.Types
+
+data ConsumptionState = Available | Consumed
+  deriving (Eq, Show)
+
+-- SourceAssetReference tracks certified quantity lineage for attestation and
+-- anti-double-spend enforcement. Consumed quantities must not be re-spent.
+
+template SourceAssetReference
+  with
+    owner : Party
+    sourceLotId : Text
+    quantity : Quantity
+    state : ConsumptionState
+  where
+    signatory owner

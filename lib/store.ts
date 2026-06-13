@@ -1,3 +1,8 @@
+/**
+ * UI/demo state only — NOT custody source of truth.
+ * Authoritative LotPosition quantities and CustodyTransfers live on Canton/Daml.
+ * Use lib/ledger/* and future app/api/ledger/* routes for ledger-backed state.
+ */
 import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 

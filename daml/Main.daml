@@ -1,0 +1,3 @@
+module Main where
+
+-- Package entry point. Domain templates live under Commodity.* modules.

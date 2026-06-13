@@ -1,0 +1,8 @@
+module Test.TraceabilityTest where
+
+-- TODO (Story 3.4+): quantity conservation across split/combine/transfer.
+-- TODO (Story 3.4+ / scripts/attempt-double-spend.ts): negative test proving a
+-- consumed SourceAssetReference quantity cannot be spent twice.
+testTraceabilityPlaceholder : Script ()
+testTraceabilityPlaceholder = script do
+  pure ()
