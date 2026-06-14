@@ -20,7 +20,9 @@
     "verify:party-visibility": "tsx scripts/verify-party-visibility.ts",
     "verify:custody-transfers": "tsx scripts/verify-custody-transfers.ts",
     "verify:combine": "tsx scripts/verify-combine.ts",
-    "verify:multi-leg": "tsx scripts/verify-multi-leg-route.ts"
+    "verify:multi-leg": "tsx scripts/verify-multi-leg-route.ts",
+    "verify:attestation": "tsx scripts/verify-attestation.ts",
+    "verify": "pnpm verify:party-visibility && pnpm verify:custody-transfers && pnpm verify:combine && pnpm verify:multi-leg && pnpm verify:attestation"
   },
   "dependencies": {
     "@tanstack/react-table": "^8.21.3",

@@ -157,74 +157,24 @@ export function TraceabilityView() {
             syncError={syncError}
           />
           <div className="mx-auto w-full max-w-4xl px-6 pt-16 pb-28">
-            <header className="mb-12 flex flex-wrap items-start justify-between gap-4">
-              <div>
-                {selectedPartyView ? (
-                  <>
-                    <h1 className="text-2xl font-semibold">
-                      {partyViewLabel(selectedPartyView)}
-                    </h1>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {partyViewRoleLabel(selectedPartyView)}
-                      {partyViewNodeLabel(selectedPartyView)
-                        ? ` · ${partyViewNodeLabel(selectedPartyView)}`
-                        : privacyProof
-                          ? " · Unrelated to the demo custody route"
-                          : null}
-                      {" · "}
-                      {formatTons(visibleTotalTons)}t visible
-                    </p>
-                  </>
-                ) : null}
-              </div>
-
-              <div className="flex shrink-0 flex-wrap gap-2">
-                {canCreateLot ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className={cn(
-                      "rounded-full bg-white dark:bg-background",
-                      panelOpen && "pointer-events-none opacity-0"
-                    )}
-                    onClick={() => setSidePanel("create-lot")}
-                  >
-                    <PackagePlus />
-                    Create Lot
-                  </Button>
-                ) : null}
-                {canCombine ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className={cn(
-                      "rounded-full bg-white dark:bg-background",
-                      panelOpen && "pointer-events-none opacity-0"
-                    )}
-                    onClick={() => setSidePanel("combine")}
-                  >
-                    <Combine />
-                    Combine lots
-                  </Button>
-                ) : null}
-                {canTransfer ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className={cn(
-                      "rounded-full bg-white dark:bg-background",
-                      panelOpen && "pointer-events-none opacity-0"
-                    )}
-                    onClick={() => setSidePanel("transfer")}
-                  >
-                    <ArrowLeftRight />
-                    Transfer custody
-                  </Button>
-                ) : null}
-              </div>
+            <header className="mb-12">
+              {selectedPartyView ? (
+                <>
+                  <h1 className="text-2xl font-semibold">
+                    {partyViewLabel(selectedPartyView)}
+                  </h1>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {partyViewRoleLabel(selectedPartyView)}
+                    {partyViewNodeLabel(selectedPartyView)
+                      ? ` · ${partyViewNodeLabel(selectedPartyView)}`
+                      : privacyProof
+                        ? " · Unrelated to the demo custody route"
+                        : null}
+                    {" · "}
+                    {formatTons(visibleTotalTons)}t visible
+                  </p>
+                </>
+              ) : null}
             </header>
 
             <Tabs
@@ -232,34 +182,86 @@ export function TraceabilityView() {
               onValueChange={setContentView}
               className="mb-4 w-full gap-6"
             >
-              <TabsList>
-                <TabsTrigger value="assets">
-                  Lot positions
-                  <span className="sr-only">
-                    — commodity holdings visible to this Party View
-                  </span>
-                </TabsTrigger>
-                <TabsTrigger value="requests" className="gap-1.5">
-                  Requests
-                  {pendingInbound.length > 0 ? (
-                    <span
-                      aria-label={`${pendingInbound.length} pending inbound request${pendingInbound.length === 1 ? "" : "s"}`}
-                      className="flex size-[17px] shrink-0 items-center justify-center rounded-full bg-muted-foreground text-[10px] font-semibold leading-none text-background"
-                    >
-                      {pendingInbound.length > 9 ? "9+" : pendingInbound.length}
+              <div className="flex w-full items-center justify-between gap-4">
+                <TabsList>
+                  <TabsTrigger value="assets">
+                    Lot positions
+                    <span className="sr-only">
+                      — commodity holdings visible to this Party View
                     </span>
+                  </TabsTrigger>
+                  <TabsTrigger value="requests" className="gap-1.5">
+                    Requests
+                    {pendingInbound.length > 0 ? (
+                      <span
+                        aria-label={`${pendingInbound.length} pending inbound request${pendingInbound.length === 1 ? "" : "s"}`}
+                        className="flex size-[17px] shrink-0 items-center justify-center rounded-full bg-muted-foreground text-[10px] font-semibold leading-none text-background"
+                      >
+                        {pendingInbound.length > 9
+                          ? "9+"
+                          : pendingInbound.length}
+                      </span>
+                    ) : null}
+                    <span className="sr-only">
+                      — pending custody transfers awaiting action
+                    </span>
+                  </TabsTrigger>
+                  <TabsTrigger value="history">
+                    Custody history
+                    <span className="sr-only">
+                      — completed custody transfers visible to this Party View
+                    </span>
+                  </TabsTrigger>
+                </TabsList>
+
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                  {canCreateLot ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "rounded-full bg-white dark:bg-background",
+                        panelOpen && "pointer-events-none opacity-0"
+                      )}
+                      onClick={() => setSidePanel("create-lot")}
+                    >
+                      <PackagePlus />
+                      Create Lot
+                    </Button>
                   ) : null}
-                  <span className="sr-only">
-                    — pending custody transfers awaiting action
-                  </span>
-                </TabsTrigger>
-                <TabsTrigger value="history">
-                  Custody history
-                  <span className="sr-only">
-                    — completed custody transfers visible to this Party View
-                  </span>
-                </TabsTrigger>
-              </TabsList>
+                  {canCombine ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "rounded-full bg-white dark:bg-background",
+                        panelOpen && "pointer-events-none opacity-0"
+                      )}
+                      onClick={() => setSidePanel("combine")}
+                    >
+                      <Combine />
+                      Combine lots
+                    </Button>
+                  ) : null}
+                  {canTransfer ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "rounded-full bg-white dark:bg-background",
+                        panelOpen && "pointer-events-none opacity-0"
+                      )}
+                      onClick={() => setSidePanel("transfer")}
+                    >
+                      <ArrowLeftRight />
+                      Transfer custody
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
 
               <div className="mt-4 overflow-hidden rounded-lg bg-muted">
                 <TabsContent value="assets" className="bg-muted">

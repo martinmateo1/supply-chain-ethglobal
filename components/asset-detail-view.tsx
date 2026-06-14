@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useMemo, type ReactNode } from "react"
-import { EyeOff, FileQuestion, ShieldCheck } from "lucide-react"
+import { EyeOff, FileQuestion } from "lucide-react"
 
 import {
   createCustodyActivityColumns,
@@ -10,6 +10,7 @@ import {
   transferEvidenceColumns,
 } from "@/components/asset-detail/columns"
 import { AppNavbar } from "@/components/app-navbar"
+import { AttestationPanel } from "@/components/attestation-panel"
 import { CommodityThumbnail } from "@/components/commodity-thumbnail"
 import { ProvenanceTimeline } from "@/components/provenance-timeline"
 import { Badge } from "@/components/ui/badge"
@@ -431,42 +432,7 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
         )}
       </section>
 
-      <section className="space-y-3">
-        <h2 className="flex items-center gap-2 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-          <ShieldCheck className="size-4" />
-          Attestation preview
-        </h2>
-        <div className="rounded-lg bg-muted px-4 py-3 text-sm">
-          <p className="text-muted-foreground">
-            This lot can support a custody-chain attestation including:
-          </p>
-          <ul className="mt-3 list-inside list-disc space-y-1 text-muted-foreground">
-            <li>
-              {commodity.label} · {formatTons(asset.quantity)}t with preserved
-              certifications
-            </li>
-            <li>
-              Current node: {holdingAccount?.name ?? asset.accountId}
-            </li>
-            <li>
-              {partyTransfers.length} visible custody event
-              {partyTransfers.length === 1 ? "" : "s"} for your party
-            </li>
-            <li>
-              {originEvidence.length} origin evidence reference
-              {originEvidence.length === 1 ? "" : "s"} with ledger-bound hashes
-            </li>
-            <li>
-              {evidence.length} transfer evidence reference
-              {evidence.length === 1 ? "" : "s"} with ledger-bound hashes
-            </li>
-          </ul>
-          <p className="mt-3 text-xs text-muted-foreground">
-            Full attestation generation will summarize the complete chain when
-            the shipment reaches a receiving port terminal account.
-          </p>
-        </div>
-      </section>
+      <AttestationPanel asset={asset} />
     </div>
   )
 }
