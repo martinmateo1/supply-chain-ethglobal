@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion"
 import { useCustodyGateway } from "@/hooks/use-custody-gateway"
 import { useLedgerSync } from "@/hooks/use-ledger-sync"
+import { toast } from "@/lib/toast"
 import {
   partyViewById,
   partyViewLabel,
@@ -60,8 +61,6 @@ export function TraceabilityView() {
     transferId: string
     kind: "accept" | "reject"
   } | null>(null)
-  const [requestsError, setRequestsError] = useState<string | null>(null)
-  const [requestsSuccess, setRequestsSuccess] = useState<string | null>(null)
 
   const selectedPartyView = partyViewById(selectedPartyViewId)
   const privacyProof = isPrivatePartyView(selectedPartyViewId)
@@ -100,44 +99,38 @@ export function TraceabilityView() {
   function handleSelectPartyView(id: string) {
     selectPartyView(id)
     setSidePanel("none")
-    setRequestsError(null)
-    setRequestsSuccess(null)
   }
 
   async function handleAcceptTransfer(transferId: string) {
     setTransferActionState({ transferId, kind: "accept" })
-    setRequestsError(null)
-    setRequestsSuccess(null)
 
     const result = await acceptTransfer(transferId)
     setTransferActionState(null)
 
     if (result.ok) {
-      setRequestsSuccess(
+      toast.success(
         "Custody transfer accepted. The lot position is now in your holdings."
       )
       return
     }
 
-    setRequestsError(result.error)
+    toast.error(result.error)
   }
 
   async function handleRejectTransfer(transferId: string) {
     setTransferActionState({ transferId, kind: "reject" })
-    setRequestsError(null)
-    setRequestsSuccess(null)
 
     const result = await rejectTransfer(transferId)
     setTransferActionState(null)
 
     if (result.ok) {
-      setRequestsSuccess(
+      toast.success(
         "Custody transfer rejected. The sender's reserved quantity has been released."
       )
       return
     }
 
-    setRequestsError(result.error)
+    toast.error(result.error)
   }
 
   return (
@@ -279,8 +272,6 @@ export function TraceabilityView() {
                     accountNameById={accountNameById}
                     privacyProof={privacyProof}
                     actionState={transferActionState}
-                    error={requestsError}
-                    successMessage={requestsSuccess}
                     onAcceptTransfer={(transferId) => {
                       void handleAcceptTransfer(transferId)
                     }}

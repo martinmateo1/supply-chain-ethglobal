@@ -17,8 +17,6 @@ type RequestsPanelProps = {
   onAcceptTransfer?: (transferId: string) => void
   onRejectTransfer?: (transferId: string) => void
   actionState?: TransferActionState
-  error?: string | null
-  successMessage?: string | null
 }
 
 export function RequestsPanel({
@@ -28,8 +26,6 @@ export function RequestsPanel({
   onAcceptTransfer,
   onRejectTransfer,
   actionState = null,
-  error = null,
-  successMessage = null,
 }: RequestsPanelProps) {
   const pendingCount = pendingInbound.length
 
@@ -51,19 +47,6 @@ export function RequestsPanel({
   if (pendingCount === 0) {
     return (
       <div className="flex flex-col">
-        {error ? (
-          <p className="mb-4 text-sm text-destructive" role="alert">
-            {error}
-          </p>
-        ) : null}
-        {successMessage ? (
-          <p
-            className="mb-4 text-sm text-emerald-800 dark:text-emerald-300"
-            role="status"
-          >
-            {successMessage}
-          </p>
-        ) : null}
         <div className="flex h-full min-h-[280px] flex-col items-center justify-center rounded-xl border border-dashed bg-muted/30 px-6 text-center">
           <Inbox className="mb-3 size-10 text-muted-foreground/60" />
           <p className="font-medium">No pending requests</p>
@@ -78,31 +61,16 @@ export function RequestsPanel({
 
   return (
     <div className="flex flex-col">
-      <div className="space-y-6">
-        {error ? (
-          <p className="text-sm text-destructive" role="alert">
-            {error}
-          </p>
-        ) : null}
-        {successMessage ? (
-          <p
-            className="text-sm text-emerald-800 dark:text-emerald-300"
-            role="status"
-          >
-            {successMessage}
-          </p>
-        ) : null}
-        <TransferSection
-          title="Awaiting your acceptance"
-          transfers={pendingInbound}
-          direction="received"
-          accountNameById={accountNameById}
-          showActions
-          onAcceptTransfer={onAcceptTransfer}
-          onRejectTransfer={onRejectTransfer}
-          actionState={actionState}
-        />
-      </div>
+      <TransferSection
+        title="Awaiting your acceptance"
+        transfers={pendingInbound}
+        direction="received"
+        accountNameById={accountNameById}
+        showActions
+        onAcceptTransfer={onAcceptTransfer}
+        onRejectTransfer={onRejectTransfer}
+        actionState={actionState}
+      />
     </div>
   )
 }
