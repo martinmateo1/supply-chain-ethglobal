@@ -61,7 +61,6 @@ async function fetchTelemetry(): Promise<LedgerTelemetry | null> {
 export function useCantonLedgerConsole() {
   const { isCantonBackend } = useLedgerConfig()
   const [lines, setLines] = useState<LogLine[]>([])
-  const [collapsed, setCollapsed] = useState(false)
 
   const lastOffsetRef = useRef<string | null>(null)
   const headerShownRef = useRef(false)
@@ -154,8 +153,6 @@ export function useCantonLedgerConsole() {
 
   return {
     lines,
-    collapsed,
-    setCollapsed,
     isVisible: isCantonBackend,
   }
 }
