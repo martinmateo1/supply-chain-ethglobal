@@ -116,9 +116,18 @@ function lotOwnerFromCreated(event: FlatLedgerEvent): string | null {
 export function foldCompletedCustodyTransfers(
   rows: unknown[],
 ): CompletedTransfer[] {
+  const allEvents = rows.every(
+    (row) =>
+      row &&
+      typeof row === "object" &&
+      "kind" in row &&
+      "templateId" in row &&
+      "contractId" in row,
+  )
+    ? (rows as FlatLedgerEvent[])
+    : flattenUpdateRows(rows)
   const createdTransfers = new Map<string, LedgerCustodyTransfer>()
 
-  const allEvents = flattenUpdateRows(rows)
   for (const event of allEvents) {
     if (
       event.kind === "created" &&
@@ -136,28 +145,18 @@ export function foldCompletedCustodyTransfers(
     }
   }
 
-  return foldCompletedCustodyTransfersAfterIndex(rows, createdTransfers)
-}
-
-function foldCompletedCustodyTransfersAfterIndex(
-  rows: unknown[],
-  createdTransfers: Map<string, LedgerCustodyTransfer>,
-): CompletedTransfer[] {
   const completed: CompletedTransfer[] = []
 
-  for (const row of rows) {
-    const events = flattenUpdateRows([row])
-    const archivedTransfer = events.find(
-      (event) =>
-        event.kind === "archived" && isCustodyTransferTemplate(event.templateId),
-    )
-    if (!archivedTransfer) continue
-
+  for (const archivedTransfer of allEvents.filter(
+    (event) =>
+      event.kind === "archived" && isCustodyTransferTemplate(event.templateId),
+  )) {
     const ledgerTransfer = createdTransfers.get(archivedTransfer.contractId)
     if (!ledgerTransfer) continue
 
-    const createdLots = events.filter(
+    const createdLots = allEvents.filter(
       (event) =>
+        event.effectiveAt === archivedTransfer.effectiveAt &&
         event.kind === "created" && isLotPositionTemplate(event.templateId),
     )
     const receiverLot = createdLots.find(
@@ -182,6 +181,14 @@ function foldCompletedCustodyTransfersAfterIndex(
       completed.push({
         ledgerTransfer,
         status: "rejected",
+        occurredAt,
+      })
+    } else {
+      // Sender-side accept visibility often includes only the archived transfer;
+      // the receiver's new LotPosition is private to the receiver.
+      completed.push({
+        ledgerTransfer,
+        status: "accepted",
         occurredAt,
       })
     }

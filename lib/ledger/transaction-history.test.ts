@@ -62,7 +62,7 @@ const senderAcceptArchiveOnlyUpdate = {
       },
     },
   },
-})
+}
 
 describe("transaction history folding", () => {
   it("keeps completed sent transfers when caller passes flattened update events", () => {
@@ -82,4 +82,4 @@ describe("transaction history folding", () => {
       occurredAt: "2026-06-14T00:05:00.000Z",
     })
   })
-}
+})
