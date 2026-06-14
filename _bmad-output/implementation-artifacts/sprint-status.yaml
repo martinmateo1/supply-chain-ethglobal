@@ -34,7 +34,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-06-13
-last_updated: 2026-06-13T23:55:00Z
+last_updated: 2026-06-14T00:30:00Z
 project: hackaton
 project_key: NOKEY
 tracking_system: file-system
@@ -72,4 +72,5 @@ development_status:
   5-2-demo-party-provisioning-and-localnet-bring-up: review
   5-3-canton-backed-gateway-adapter: review
   5-4-authoritative-ledger-state-in-the-ui: review
+  5-5-canton-live-ledger-console-panel: review
   epic-5-retrospective: optional

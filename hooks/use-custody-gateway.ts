@@ -3,6 +3,8 @@
 import { useCallback, useState } from "react"
 
 import { useLedgerConfig } from "@/hooks/use-ledger-config"
+import { operationalNodeForPartyView } from "@/lib/demo/party-view-auth"
+import { emitCantonCommandEvent } from "@/lib/canton-console-events"
 import type { ApiResponse } from "@/lib/api/response"
 import type { CustodySnapshot } from "@/lib/demo/custody-service"
 import type { InitiateTransferRequest } from "@/lib/demo/custody-service"
@@ -70,6 +72,16 @@ export function useCustodyGateway() {
     [assets, transfers],
   )
 
+  const logCantonCommand = useCallback(
+    (choice: string, template: string) => {
+      if (!isCanton) return
+      const partyHint =
+        operationalNodeForPartyView(selectedPartyViewId) ?? selectedPartyViewId
+      emitCantonCommandEvent({ choice, template, partyHint })
+    },
+    [isCanton, selectedPartyViewId],
+  )
+
   const initiateTransfer = useCallback(
     async (input: {
       fromAccountId: string
@@ -104,6 +116,7 @@ export function useCustodyGateway() {
 
       if (data) {
         applyCustodySnapshot({ assets: data.assets, transfers: data.transfers })
+        logCantonCommand("InitiateTransfer", "LotPosition")
         return { ok: true as const, transfer: data.transfer }
       }
 
@@ -111,7 +124,7 @@ export function useCustodyGateway() {
       setError(fallback)
       return { ok: false as const, error: fallback }
     },
-    [applyCustodySnapshot, getSnapshot, isCanton, selectedPartyViewId],
+    [applyCustodySnapshot, getSnapshot, isCanton, logCantonCommand, selectedPartyViewId],
   )
 
   const acceptTransfer = useCallback(
@@ -143,6 +156,7 @@ export function useCustodyGateway() {
 
       if (data) {
         applyCustodySnapshot({ assets: data.assets, transfers: data.transfers })
+        logCantonCommand("AcceptTransfer", "CustodyTransfer")
         return { ok: true as const, transfer: data.transfer }
       }
 
@@ -150,7 +164,7 @@ export function useCustodyGateway() {
       setError(fallback)
       return { ok: false as const, error: fallback }
     },
-    [applyCustodySnapshot, getSnapshot, isCanton, selectedPartyViewId],
+    [applyCustodySnapshot, getSnapshot, isCanton, logCantonCommand, selectedPartyViewId],
   )
 
   const rejectTransfer = useCallback(
@@ -182,6 +196,7 @@ export function useCustodyGateway() {
 
       if (data) {
         applyCustodySnapshot({ assets: data.assets, transfers: data.transfers })
+        logCantonCommand("RejectTransfer", "CustodyTransfer")
         return { ok: true as const, transfer: data.transfer }
       }
 
@@ -189,7 +204,7 @@ export function useCustodyGateway() {
       setError(fallback)
       return { ok: false as const, error: fallback }
     },
-    [applyCustodySnapshot, getSnapshot, isCanton, selectedPartyViewId],
+    [applyCustodySnapshot, getSnapshot, isCanton, logCantonCommand, selectedPartyViewId],
   )
 
   const createLot = useCallback(

@@ -17,6 +17,14 @@ export declare type AcceptTransfer = {
 export declare const AcceptTransfer:
   damlTypes.Serializable<AcceptTransfer>
 
+export declare type CombineLots = {
+  otherLotCid: damlTypes.ContractId<LotPosition>,
+  combinedLotId: string,
+}
+
+export declare const CombineLots:
+  damlTypes.Serializable<CombineLots>
+
 export declare type CustodyTransfer = {
   transferId: string,
   sender: damlTypes.Party,
@@ -70,6 +78,9 @@ export declare type LotPosition = {
 export declare interface LotPositionInterface {
   Archive: 
     damlTypes.Choice<LotPosition, pkg9e70a8b3510d617f8a136213f33d6a903a10ca0eeec76bb06ba55d1ed9680f69.DA.Internal.Template.Archive, {}, undefined> &
+    damlTypes.ChoiceFrom<damlTypes.Template<LotPosition, undefined>>;
+  CombineLots: 
+    damlTypes.Choice<LotPosition, CombineLots, damlTypes.ContractId<LotPosition>, undefined> &
     damlTypes.ChoiceFrom<damlTypes.Template<LotPosition, undefined>>;
   InitiateTransfer: 
     damlTypes.Choice<LotPosition, InitiateTransfer, pkg5aee9b21b8e9a4c4975b5f4c4198e6e6e8469df49e2010820e792f393db870f4.DA.Types.Tuple2<damlTypes.ContractId<CustodyTransfer>, damlTypes.Optional<damlTypes.ContractId<LotPosition>>>, undefined> &

@@ -235,9 +235,12 @@ it increments again. Each custody action is a Daml choice executed on Canton.
 
 With `LEDGER_BACKEND=canton`, the UI itself surfaces Canton behavior:
 
+- **Canton ledger console** — a terminal-style panel on the right edge of the dashboard streams live ledger telemetry (offset, ACS, package id) and logs custody commands as you click. This is the primary live-proof surface for judges; no second terminal required.
 - The banner "Holdings and pending transfers are read from the Canton ledger."
 - Selective visibility: pick an unrelated Party View → empty holdings with the Canton privacy
   note (not a loading error); switch to a route party → records appear.
+
+Keep `dpm canton-console` (§7.1) and the offset watcher (§7.2) as advanced backup for Q&A.
 
 ### 7.4 Scripted proof (backup / Q&A)
 
