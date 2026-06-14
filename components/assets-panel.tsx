@@ -68,8 +68,11 @@ export function AssetsPanel({
             : "Lot position"
 
           return (
-            <div key={index} className="space-y-3">
-              <p className="text-sm font-medium text-muted-foreground">
+            <div
+              key={index}
+              className="space-y-3 rounded-lg bg-muted-foreground/[0.06] p-1 dark:bg-black/20"
+            >
+              <p className="px-2.5 pt-2 pb-0 text-sm font-medium text-muted-foreground">
                 {stageLabel} {LETTERS[index] ?? index + 1} &middot;{" "}
                 {groupAssets.length} lot position
                 {groupAssets.length === 1 ? "" : "s"}

@@ -138,17 +138,17 @@ export const RATING_META: Record<Rating, RatingMeta> = {
   A: {
     label: "A",
     className:
-      "bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
+      "bg-emerald-600 text-white dark:bg-emerald-500 dark:text-white",
   },
   B: {
     label: "B",
     className:
-      "bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-300",
+      "bg-amber-500 text-amber-950 dark:bg-amber-400 dark:text-amber-950",
   },
   C: {
     label: "C",
     className:
-      "bg-rose-50 text-rose-800 dark:bg-rose-950 dark:text-rose-300",
+      "bg-rose-600 text-white dark:bg-rose-500 dark:text-white",
   },
 }
 
@@ -176,25 +176,13 @@ export function assetKey(
   return `${commodity}:${certificationKey(certifications)}`
 }
 
-export const ASSET_IMAGES: Record<string, string> = {
-  [assetKey("coffee", ["non-gmo", "deforestation-free"])]:
-    "/assets/green.png",
-  [assetKey("coffee", ["non-gmo"])]: "/assets/blue.png",
-  [assetKey("cacao", ["deforestation-free"])]: "/assets/red.png",
-  [assetKey("cacao", ["non-gmo", "deforestation-free"])]:
-    "/assets/purple.png",
-}
-
-const COMMODITY_DEFAULT_IMAGE: Record<CommodityType, string> = {
-  coffee: "/assets/green.png",
-  cacao: "/assets/orange.png",
+const COMMODITY_IMAGE: Record<CommodityType, string> = {
+  coffee: "/assets/coffee.png",
+  cacao: "/assets/cacao.png",
 }
 
 export function assetImage(
   asset: Pick<Asset, "commodity" | "certifications">
 ): string {
-  return (
-    ASSET_IMAGES[assetKey(asset.commodity, asset.certifications)] ??
-    COMMODITY_DEFAULT_IMAGE[asset.commodity]
-  )
+  return COMMODITY_IMAGE[asset.commodity]
 }

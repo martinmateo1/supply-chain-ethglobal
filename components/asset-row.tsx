@@ -22,13 +22,24 @@ export function AssetRow({ asset }: AssetRowProps) {
   return (
     <div
       role="listitem"
-      className="flex w-full items-center gap-3 border-b border-border p-4 last:border-b-0"
+      className="flex w-full items-center gap-3 border-b-[0.5px] border-border p-4 last:border-b-0"
     >
-      <CommodityThumbnail
-        commodity={asset.commodity}
-        certifications={asset.certifications}
-        size={48}
-      />
+      <div className="relative mb-[0.3125rem] mr-[0.3125rem] shrink-0">
+        <CommodityThumbnail
+          commodity={asset.commodity}
+          certifications={asset.certifications}
+          size={48}
+          imageClassName="p-1"
+        />
+        <Badge
+          className={cn(
+            "absolute right-0 bottom-0 z-10 size-5 translate-x-1/4 translate-y-1/4 rounded-md border-none p-1 text-xs leading-none font-bold",
+            rating.className
+          )}
+        >
+          {rating.label}
+        </Badge>
+      </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-center justify-between gap-3">
@@ -45,14 +56,6 @@ export function AssetRow({ asset }: AssetRowProps) {
         </div>
         <div className="flex items-center gap-3">
           <p className="m-0 flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm leading-snug text-muted-foreground">
-            <Badge
-              className={cn(
-                "size-5 shrink-0 rounded-md border-none p-1 text-xs leading-none",
-                rating.className
-              )}
-            >
-              {rating.label}
-            </Badge>
             {asset.certifications.length > 0 ? (
               <>
                 <span className="text-foreground">Certifications</span>

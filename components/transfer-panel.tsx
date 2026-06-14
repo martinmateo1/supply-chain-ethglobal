@@ -118,6 +118,7 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
     return (
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-3">
+          <h2 className="text-base font-semibold">Transfer custody</h2>
           <button
             onClick={onClose}
             className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -125,7 +126,6 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
           >
             <X className="size-4" />
           </button>
-          <h2 className="flex-1 text-base font-semibold">Transfer custody</h2>
         </div>
 
         <div className="flex flex-col items-center gap-4 py-8 text-center">
@@ -153,19 +153,19 @@ export function TransferPanel({ onClose, fromAccountId }: TransferPanelProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
-        <button
-          onClick={onClose}
-          className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          aria-label="Close panel"
-        >
-          <X className="size-4" />
-        </button>
         <div className="min-w-0 flex-1">
           <h2 className="text-base font-semibold">Transfer custody</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">
             Initiate a custody transfer from your operational node.
           </p>
         </div>
+        <button
+          onClick={onClose}
+          className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          aria-label="Close panel"
+        >
+          <X className="size-4" />
+        </button>
       </div>
 
       <div className="space-y-5">

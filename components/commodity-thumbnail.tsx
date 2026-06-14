@@ -12,6 +12,8 @@ import {
 } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
+const THUMBNAIL_RADIUS = "rounded-xl"
+
 type CommodityThumbnailProps = {
   commodity: CommodityType
   certifications: Certification[]
@@ -39,7 +41,8 @@ export function CommodityThumbnail({
     return (
       <div
         className={cn(
-          "flex items-center justify-center overflow-hidden rounded-xl border border-border/60 bg-muted",
+          "flex items-center justify-center overflow-hidden border border-border/60 bg-muted",
+          THUMBNAIL_RADIUS,
           className
         )}
         style={{ width: size, height: size }}
@@ -56,7 +59,8 @@ export function CommodityThumbnail({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-xl border border-border/60 bg-muted",
+        "overflow-hidden border border-border/60 bg-muted",
+        THUMBNAIL_RADIUS,
         className
       )}
       style={{ width: size, height: size }}
@@ -66,7 +70,11 @@ export function CommodityThumbnail({
         alt={meta.label}
         width={size}
         height={size}
-        className={cn("size-full object-cover", imageClassName)}
+        className={cn(
+          "size-full object-contain",
+          THUMBNAIL_RADIUS,
+          imageClassName
+        )}
         onError={() => setFailed(true)}
       />
     </div>

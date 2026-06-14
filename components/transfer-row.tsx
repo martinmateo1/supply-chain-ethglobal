@@ -87,7 +87,7 @@ export function TransferRow({
   return (
     <div
       role="listitem"
-      className="border-b border-border p-4 last:border-b-0"
+      className="border-b-[0.5px] border-border p-4 last:border-b-0"
     >
       <div className="flex w-full items-center gap-3">
         <div className="relative size-12 shrink-0">
