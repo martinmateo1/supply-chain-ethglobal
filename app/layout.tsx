@@ -3,6 +3,7 @@ import { Geist_Mono, Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { StoreHydration } from "@/components/store-hydration"
+import { Toaster } from "@/components/toaster"
 import { cn } from "@/lib/utils";
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'})
@@ -26,6 +27,7 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           <StoreHydration>{children}</StoreHydration>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>
