@@ -1,6 +1,11 @@
 "use client"
 
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { ShieldCheck, X } from "lucide-react"
+
 import { PartyViewSelector } from "@/components/party-view-selector"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 type AppNavbarProps = {
@@ -23,6 +28,9 @@ export function AppNavbar({
   syncError = null,
   className,
 }: AppNavbarProps) {
+  const pathname = usePathname()
+  const onVerifyPage = pathname === "/verify"
+
   const statusMessage = syncError
     ? syncError
     : isSyncing
@@ -39,26 +47,42 @@ export function AppNavbar({
       <PartyViewSelector
         selectedPartyViewId={selectedPartyViewId}
         onSelectPartyView={onSelectPartyView}
-        className="mr-auto min-w-0"
+        className="min-w-0"
       />
-      {isCantonBackend ? (
-        <p
-          className={cn(
-            "flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground",
-            syncError && "text-destructive"
-          )}
-        >
-          <span
-            aria-hidden
+      <div className="ml-auto flex shrink-0 items-center gap-3">
+        {isCantonBackend ? (
+          <p
             className={cn(
-              "size-1.5 shrink-0 rounded-full bg-emerald-500",
-              isSyncing && "animate-pulse",
-              syncError && "bg-destructive"
+              "flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground",
+              syncError && "text-destructive"
             )}
-          />
-          <span>{statusMessage}</span>
-        </p>
-      ) : null}
+          >
+            <span
+              aria-hidden
+              className={cn(
+                "size-1.5 shrink-0 rounded-full bg-emerald-500",
+                isSyncing && "animate-pulse",
+                syncError && "bg-destructive"
+              )}
+            />
+            <span>{statusMessage}</span>
+          </p>
+        ) : null}
+        {onVerifyPage ? (
+          <Button asChild variant="ghost" size="icon-sm" className="shrink-0">
+            <Link href="/" aria-label="Close verifier">
+              <X />
+            </Link>
+          </Button>
+        ) : (
+          <Button asChild variant="outline" size="sm" className="shrink-0">
+            <Link href="/verify">
+              <ShieldCheck data-icon="inline-start" />
+              Verify attestation
+            </Link>
+          </Button>
+        )}
+      </div>
     </header>
   )
 }

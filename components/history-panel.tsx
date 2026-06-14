@@ -45,8 +45,8 @@ export function TransferSection({
   }
 
   return (
-    <div className="space-y-3">
-      <p className="text-sm font-medium text-muted-foreground">
+    <div className="space-y-3 rounded-lg bg-muted-foreground/[0.06] p-1 dark:bg-black/20">
+      <p className="px-2.5 pt-2 pb-0 text-sm font-medium text-muted-foreground">
         {title}
         {transfers.length > 0
           ? ` · ${transfers.length} transfer${transfers.length === 1 ? "" : "s"}`
