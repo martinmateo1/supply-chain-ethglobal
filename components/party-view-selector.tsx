@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/select"
 import {
   DEMO_PARTY_VIEWS,
-  isRoutePartyView,
   partyViewById,
   partyViewLabel,
   partyViewNodeLabel,
@@ -18,7 +17,7 @@ import {
 } from "@/lib/demo/party-views"
 import { useTraceabilityStore } from "@/lib/store"
 import { STAGE_META } from "@/lib/types"
-import { cn, formatTons } from "@/lib/utils"
+import { cn } from "@/lib/utils"
 
 type PartyViewSelectorProps = {
   selectedPartyViewId: string
@@ -32,12 +31,8 @@ export function PartyViewSelector({
   className,
 }: PartyViewSelectorProps) {
   const accounts = useTraceabilityStore((state) => state.accounts)
-  const partyViewVisibleTotalTons = useTraceabilityStore(
-    (state) => state.partyViewVisibleTotalTons
-  )
 
   const selectedPartyView = partyViewById(selectedPartyViewId)
-  const visibleTotalTons = partyViewVisibleTotalTons(selectedPartyViewId)
 
   return (
     <div className={cn("min-w-0", className)}>
@@ -60,8 +55,7 @@ export function PartyViewSelector({
                 · {partyViewRoleLabel(selectedPartyView)}
                 {partyViewNodeLabel(selectedPartyView)
                   ? ` · ${partyViewNodeLabel(selectedPartyView)}`
-                  : ""}{" "}
-                · {formatTons(visibleTotalTons)}t
+                  : ""}
               </span>
             </span>
           ) : (
@@ -70,7 +64,6 @@ export function PartyViewSelector({
         </SelectTrigger>
         <SelectContent side="bottom" position="popper" align="start">
           {DEMO_PARTY_VIEWS.map((view) => {
-            const totalTons = partyViewVisibleTotalTons(view.id)
             const nodeLabel = partyViewNodeLabel(view)
             const roleLabel = partyViewRoleLabel(view)
             const StageIcon = view.operationalNodeId
@@ -86,13 +79,9 @@ export function PartyViewSelector({
                   <StageIcon className="size-4 text-muted-foreground" />
                 ) : null}
                 <span className="min-w-0 truncate">{partyViewLabel(view)}</span>
-                <span className="text-muted-foreground">
-                  {isRoutePartyView(view)
-                    ? `(${formatTons(totalTons)}t)`
-                    : view.companyRole === "non-involved"
-                      ? "(unrelated)"
-                      : `(${formatTons(totalTons)}t)`}
-                </span>
+                {view.companyRole === "non-involved" ? (
+                  <span className="text-muted-foreground">(unrelated)</span>
+                ) : null}
                 <span className="sr-only">
                   {roleLabel}
                   {nodeLabel ? ` · ${nodeLabel}` : ""}
