@@ -133,3 +133,23 @@ So that the ledger — not `localStorage` — is the source of truth (closing th
 **When** the happy path (create lot → transfer → accept) and the double-spend negative are exercised end-to-end against Canton
 **Then** both behave correctly through the running app
 **And** Story 2.4 AC 3 can be marked MET for the Canton path, with the demo adapter retained only as a flagged fallback.
+
+## Story 5.5: Canton Live Ledger Console Panel
+
+As a demo operator presenting to judges,
+I want an in-app terminal-style side panel that streams Canton ledger activity in real time,
+So that I can prove custody actions hit the real ledger without leaving the app or opening `dpm canton-console`.
+
+**Requirements Covered:** FR7 (ledger-backed demo credibility), UX-DR30 (guided proof surface)
+
+**Acceptance Criteria:**
+
+**Given** `LEDGER_BACKEND=canton` and the sandbox is reachable
+**When** the dashboard loads
+**Then** a fixed terminal-style side panel shows live ledger telemetry (offset, ACS, package id, party count) polled via the gateway
+**And** the panel is hidden when `LEDGER_BACKEND=demo`.
+
+**Given** the user performs custody actions in the UI
+**When** the gateway submits Daml choices to Canton
+**Then** the console appends human-readable lines for each action and offset changes within ~2s
+**And** the layout coexists with existing workflow side panels without breaking them.

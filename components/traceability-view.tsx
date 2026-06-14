@@ -3,6 +3,7 @@
 import { ArrowLeftRight, Combine, PackagePlus } from "lucide-react"
 import { useState } from "react"
 import { AssetsPanel } from "@/components/assets-panel"
+import { CantonLedgerConsole } from "@/components/canton-ledger-console"
 import { CombinePanel } from "@/components/combine-panel"
 import { CreateLotPanel } from "@/components/create-lot-panel"
 import { AppNavbar } from "@/components/app-navbar"
@@ -141,13 +142,14 @@ export function TraceabilityView() {
 
   return (
     <div className="flex h-svh w-full flex-col overflow-hidden">
-      <div
-        className={cn(
-          "flex min-h-0 flex-1",
-          slideClass,
-          panelOpen && "-translate-x-[180px]"
-        )}
-      >
+      <div className="flex min-h-0 flex-1">
+        <div
+          className={cn(
+            "flex min-h-0 min-w-0 flex-1",
+            slideClass,
+            panelOpen && "-translate-x-[180px]",
+          )}
+        >
         <div className="h-full w-full min-w-0 flex-shrink-0 overflow-y-auto overscroll-y-contain">
           <AppNavbar
             selectedPartyViewId={selectedPartyViewId}
@@ -355,6 +357,8 @@ export function TraceabilityView() {
             />
           </aside>
         ) : null}
+        </div>
+        {isCantonBackend ? <CantonLedgerConsole /> : null}
       </div>
     </div>
   )
