@@ -2,6 +2,7 @@ module Test.TraceabilityTest where
 
 import Commodity.LotPosition
 import Commodity.Types
+import DA.List ((!!))
 import Daml.Script
 
 -- Happy path: create lot → initiate transfer → accept.
@@ -19,6 +20,7 @@ testCustodyHappyPath = script do
       certifications = [NonGMO, DeforestationFree]
       quality = GradeA
       originIdentifier = Some "origin-huila-001"
+      provenance = []
 
   (transferCid, remainder) <- submit sender do
     exerciseCmd lotCid InitiateTransfer with
@@ -36,7 +38,7 @@ testCustodyHappyPath = script do
     None -> abort "Expected remainder lot after partial transfer"
 
   receiverLotCid <- submit receiver do
-    exerciseCmd transferCid AcceptTransfer
+    exerciseCmd transferCid AcceptTransfer with occurredAt = ""
 
   receiverLotOpt <- queryContractId receiver receiverLotCid
   case receiverLotOpt of
@@ -44,6 +46,9 @@ testCustodyHappyPath = script do
       assertMsg "Receiver lot quantity wrong" (receiverLot.quantity.amount == 40.0)
       assertMsg "Receiver lot commodity wrong" (receiverLot.commodity == Coffee)
       assertMsg "Provenance not preserved" (receiverLot.originIdentifier == Some "origin-huila-001")
+      assertMsg "Provenance chain should grow on accept" (length receiverLot.provenance == 1)
+      let hop = receiverLot.provenance !! 0
+      assertMsg "Evidence hash should survive accept" (elem "0xabc123" hop.evidenceHashes)
     None -> abort "Receiver lot not found after accept"
 
   pure ()
@@ -64,6 +69,7 @@ testDoubleSpendBlocked = script do
       certifications = [DeforestationFree]
       quality = GradeB
       originIdentifier = None
+      provenance = []
 
   (transferCid, remainder) <- submit sender do
     exerciseCmd lotCid InitiateTransfer with
@@ -123,6 +129,7 @@ testCannotAcceptTwice = script do
       certifications = [NonGMO]
       quality = GradeA
       originIdentifier = None
+      provenance = []
 
   (transferCid, _) <- submit sender do
     exerciseCmd lotCid InitiateTransfer with
@@ -132,10 +139,10 @@ testCannotAcceptTwice = script do
       evidenceHashes = []
 
   _ <- submit receiver do
-    exerciseCmd transferCid AcceptTransfer
+    exerciseCmd transferCid AcceptTransfer with occurredAt = ""
 
   submitMustFail receiver do
-    exerciseCmd transferCid AcceptTransfer
+    exerciseCmd transferCid AcceptTransfer with occurredAt = ""
 
   pure ()
 
@@ -154,6 +161,7 @@ testCannotAcceptAfterReject = script do
       certifications = [NonGMO]
       quality = GradeA
       originIdentifier = None
+      provenance = []
 
   (transferCid, _) <- submit sender do
     exerciseCmd lotCid InitiateTransfer with
@@ -163,10 +171,10 @@ testCannotAcceptAfterReject = script do
       evidenceHashes = []
 
   _ <- submit receiver do
-    exerciseCmd transferCid RejectTransfer
+    exerciseCmd transferCid RejectTransfer with occurredAt = ""
 
   submitMustFail receiver do
-    exerciseCmd transferCid AcceptTransfer
+    exerciseCmd transferCid AcceptTransfer with occurredAt = ""
 
   pure ()
 
@@ -185,6 +193,7 @@ testTransferAmountMustBePositive = script do
       certifications = [NonGMO]
       quality = GradeA
       originIdentifier = None
+      provenance = []
 
   submitMustFail sender do
     exerciseCmd lotCid InitiateTransfer with
@@ -210,6 +219,7 @@ testRejectReleasesQuantity = script do
       certifications = [NonGMO]
       quality = GradeC
       originIdentifier = Some "origin-reject"
+      provenance = []
 
   (transferCid, _) <- submit sender do
     exerciseCmd lotCid InitiateTransfer with
@@ -219,7 +229,7 @@ testRejectReleasesQuantity = script do
       evidenceHashes = ["0xreject"]
 
   returnedCid <- submit receiver do
-    exerciseCmd transferCid RejectTransfer
+    exerciseCmd transferCid RejectTransfer with occurredAt = ""
 
   returnedOpt <- queryContractId sender returnedCid
   case returnedOpt of
@@ -245,6 +255,7 @@ testCombineCompatible = script do
       certifications = [NonGMO, DeforestationFree]
       quality = GradeA
       originIdentifier = Some "origin-a"
+      provenance = []
 
   lotB <- submit operator do
     createCmd LotPosition with
@@ -256,6 +267,7 @@ testCombineCompatible = script do
       certifications = [DeforestationFree, NonGMO]
       quality = GradeA
       originIdentifier = Some "origin-b"
+      provenance = []
 
   combinedCid <- submit operator do
     exerciseCmd lotA CombineLots with
@@ -292,6 +304,7 @@ testCombineIncompatibleCommodity = script do
       certifications = [NonGMO]
       quality = GradeA
       originIdentifier = None
+      provenance = []
 
   lotB <- submit operator do
     createCmd LotPosition with
@@ -302,6 +315,7 @@ testCombineIncompatibleCommodity = script do
       certifications = [NonGMO]
       quality = GradeA
       originIdentifier = None
+      provenance = []
 
   submitMustFail operator do
     exerciseCmd lotA CombineLots with
@@ -324,6 +338,7 @@ testCombineIncompatibleCerts = script do
       certifications = [NonGMO, DeforestationFree]
       quality = GradeA
       originIdentifier = None
+      provenance = []
 
   lotB <- submit operator do
     createCmd LotPosition with
@@ -334,6 +349,7 @@ testCombineIncompatibleCerts = script do
       certifications = [NonGMO]
       quality = GradeA
       originIdentifier = None
+      provenance = []
 
   submitMustFail operator do
     exerciseCmd lotA CombineLots with
@@ -367,7 +383,7 @@ testMultiLegRoute = script do
       assertMsg "Full transfer should leave no remainder" (remainder == None)
 
       receiverLotCid <- submit receiver do
-        exerciseCmd transferCid AcceptTransfer
+        exerciseCmd transferCid AcceptTransfer with occurredAt = ""
 
       receiverLotOpt <- queryContractId receiver receiverLotCid
       case receiverLotOpt of
@@ -378,6 +394,8 @@ testMultiLegRoute = script do
             (receiverLot.certifications == [NonGMO, DeforestationFree])
           assertMsg "Provenance not preserved across leg"
             (receiverLot.originIdentifier == Some "origin-huila-001")
+          assertMsg "Provenance chain should grow each leg"
+            (length receiverLot.provenance >= 1)
         None -> abort "Receiver lot not found after accept"
 
       pure receiverLotCid
@@ -392,6 +410,7 @@ testMultiLegRoute = script do
       certifications = [NonGMO, DeforestationFree]
       quality = GradeA
       originIdentifier = Some "origin-huila-001"
+      provenance = []
 
   railLot <- leg silo lot0 rail "t-route-rail"
   portLot <- leg rail railLot originPort "t-route-origin-port"

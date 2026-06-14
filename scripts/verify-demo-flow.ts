@@ -70,7 +70,7 @@ async function main() {
           templateId: custodyTransferTemplateId(client),
           contractId: transferCid,
           choice: "AcceptTransfer",
-          choiceArgument: {},
+          choiceArgument: { occurredAt: new Date().toISOString() },
         },
       },
     ],
@@ -99,6 +99,11 @@ async function main() {
       `Receiver lot quantity mismatch: expected ${transferAmount}, got ${receivedAmount}.`,
     )
   }
+
+  if (receiverLot.provenance.length < 1) {
+    throw new Error("AcceptTransfer did not append provenance to the receiver lot.")
+  }
+
   if (!receiverLot.owner.startsWith("truck-transport::")) {
     throw new Error(
       `Receiver lot owner mismatch: expected truck-transport party, got ${receiverLot.owner}.`,
@@ -106,7 +111,7 @@ async function main() {
   }
 
   console.log(
-    `Canton happy path verified: initiate -> accept (${receivedAmount} tons to receiver).`,
+    `Canton happy path verified: initiate -> accept (${receivedAmount} tons to receiver, provenance length ${receiverLot.provenance.length}).`,
   )
 }
 

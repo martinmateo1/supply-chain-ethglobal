@@ -75,6 +75,7 @@ createSeedLots parties = do
         certifications = certsAt pick
         quality = qualityAt pick
         originIdentifier = None
+        provenance = []
     ) slots
 
 setupDemo : Script ()

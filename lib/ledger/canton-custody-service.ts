@@ -17,6 +17,10 @@ import {
 } from "@/lib/ledger/client"
 import { LedgerError, LedgerErrorCode } from "@/lib/ledger/errors"
 import {
+  registerEvidenceMetadata,
+  loadEvidenceMetadataStore,
+} from "@/lib/ledger/evidence-metadata-store"
+import {
   mapCustodyTransferToTransfer,
   mapLotPayloadToLedgerLot,
   mapLotPositionToAsset,
@@ -24,6 +28,7 @@ import {
   partyHintFromId,
   toDamlCertification,
   toDamlCommodity,
+  toDamlProvenanceEntry,
   toDamlQualityGrade,
   type LedgerCustodyTransfer,
   type LedgerLotPosition,
@@ -33,6 +38,11 @@ import {
   resolvePartyId,
   resolvePartyIdForView,
 } from "@/lib/ledger/party-config"
+import {
+  completedTransfersForParty,
+  flattenUpdateRows,
+  foldCompletedCustodyTransfers,
+} from "@/lib/ledger/transaction-history"
 import type { Asset, Transfer, TransferAttachment } from "@/lib/types"
 
 let cachedClient: LedgerClient | null = null
@@ -63,8 +73,6 @@ async function queryLedgerState(
   const lotMap = new Map<string, LedgerLotPosition>()
   const transferMap = new Map<string, LedgerCustodyTransfer>()
 
-  // Resolve a single ledger-end offset so every party is read at the same
-  // consistent snapshot (avoids mixing offsets across multi-party reads).
   const offset = await client.getLedgerEndOffset()
 
   for (const partyId of uniqueParties(partyIds)) {
@@ -101,23 +109,41 @@ async function queryLedgerState(
   }
 }
 
-function lotsToAssets(lots: LedgerLotPosition[]): Asset[] {
+async function queryCompletedTransfers(
+  client: LedgerClient,
+  partyId: string,
+): Promise<ReturnType<typeof foldCompletedCustodyTransfers>> {
+  const rows = await client.queryUpdateFlats(partyId)
+  const events = flattenUpdateRows(rows)
+  return foldCompletedCustodyTransfers(events)
+}
+
+function lotsToAssets(
+  lots: LedgerLotPosition[],
+  metadataByHash: Record<string, import("@/lib/ledger/evidence-metadata-store").StoredEvidenceMetadata>,
+): Asset[] {
   return lots.map((lot) =>
-    mapLotPositionToAsset(lot, partyHintFromId(lot.owner)),
+    mapLotPositionToAsset(lot, partyHintFromId(lot.owner), metadataByHash),
   )
 }
 
-function transfersToDomain(transfers: LedgerCustodyTransfer[]): Transfer[] {
-  return transfers.map(mapCustodyTransferToTransfer)
+function transfersToDomain(
+  transfers: LedgerCustodyTransfer[],
+  metadataByHash: Record<string, import("@/lib/ledger/evidence-metadata-store").StoredEvidenceMetadata>,
+): Transfer[] {
+  return transfers.map((transfer) =>
+    mapCustodyTransferToTransfer(transfer, metadataByHash),
+  )
 }
 
 function buildSnapshot(
   lots: LedgerLotPosition[],
   transfers: LedgerCustodyTransfer[],
+  metadataByHash: Record<string, import("@/lib/ledger/evidence-metadata-store").StoredEvidenceMetadata>,
 ): CustodySnapshot {
   return {
-    assets: lotsToAssets(lots),
-    transfers: transfersToDomain(transfers),
+    assets: lotsToAssets(lots, metadataByHash),
+    transfers: transfersToDomain(transfers, metadataByHash),
   }
 }
 
@@ -128,8 +154,11 @@ async function snapshotForPartyViews(
   const partyIds = await Promise.all(
     partyViewIds.map((viewId) => resolvePartyIdForView(client, viewId)),
   )
-  const state = await queryLedgerState(client, partyIds)
-  return buildSnapshot(state.lots, state.transfers)
+  const [state, metadataByHash] = await Promise.all([
+    queryLedgerState(client, partyIds),
+    loadEvidenceMetadataStore(),
+  ])
+  return buildSnapshot(state.lots, state.transfers, metadataByHash)
 }
 
 function normalizeAttachments(
@@ -171,6 +200,14 @@ function transactionTime(response: {
   return response.transaction?.effectiveAt ?? new Date().toISOString()
 }
 
+function dedupeTransfers(transfers: Transfer[]): Transfer[] {
+  const map = new Map<string, Transfer>()
+  for (const transfer of transfers) {
+    map.set(transfer.id, transfer)
+  }
+  return [...map.values()]
+}
+
 export async function cantonVisibleHoldings(
   partyViewId: string,
 ): Promise<CustodySnapshot> {
@@ -189,43 +226,74 @@ export async function cantonTransferHistory(
   const client = getClient()
   const nodeId = partyHintForPartyView(partyViewId)
   const partyId = await resolvePartyId(client, nodeId)
-  const state = await queryLedgerState(client, [partyId])
-  const transfers = transfersToDomain(state.transfers).filter(
+  const [state, completed, metadataByHash] = await Promise.all([
+    queryLedgerState(client, [partyId]),
+    queryCompletedTransfers(client, partyId),
+    loadEvidenceMetadataStore(),
+  ])
+
+  const active = transfersToDomain(state.transfers, metadataByHash).filter(
     (transfer) =>
       transfer.fromAccountId === nodeId || transfer.toAccountId === nodeId,
+  )
+
+  const historical = completedTransfersForParty(completed, nodeId)
+  const metadataHistorical = {
+    sent: historical.sent.map((transfer) => ({
+      ...transfer,
+      attachments: transfer.attachments?.map((attachment) => {
+        const metadata = metadataByHash[attachment.hash]
+        return metadata
+          ? { ...attachment, name: metadata.name, mimeType: metadata.mimeType, size: metadata.size }
+          : attachment
+      }),
+    })),
+    received: historical.received.map((transfer) => ({
+      ...transfer,
+      attachments: transfer.attachments?.map((attachment) => {
+        const metadata = metadataByHash[attachment.hash]
+        return metadata
+          ? { ...attachment, name: metadata.name, mimeType: metadata.mimeType, size: metadata.size }
+          : attachment
+      }),
+    })),
+  }
+
+  const sent = dedupeTransfers([
+    ...metadataHistorical.sent,
+    ...active.filter(
+      (transfer) =>
+        transfer.fromAccountId === nodeId && transfer.status !== "pending",
+    ),
+  ])
+  const received = dedupeTransfers([
+    ...metadataHistorical.received,
+    ...active.filter(
+      (transfer) =>
+        transfer.toAccountId === nodeId && transfer.status !== "pending",
+    ),
+  ])
+  const pendingInbound = active.filter(
+    (transfer) =>
+      transfer.toAccountId === nodeId && transfer.status === "pending",
+  )
+  const pendingOutbound = active.filter(
+    (transfer) =>
+      transfer.fromAccountId === nodeId && transfer.status === "pending",
   )
 
   const sortNewest = (items: Transfer[]) =>
     [...items].sort(
       (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        new Date(b.occurredAt ?? b.createdAt).getTime() -
+        new Date(a.occurredAt ?? a.createdAt).getTime(),
     )
 
   return {
-    sent: sortNewest(
-      transfers.filter(
-        (transfer) =>
-          transfer.fromAccountId === nodeId && transfer.status !== "pending",
-      ),
-    ),
-    received: sortNewest(
-      transfers.filter(
-        (transfer) =>
-          transfer.toAccountId === nodeId && transfer.status !== "pending",
-      ),
-    ),
-    pendingInbound: sortNewest(
-      transfers.filter(
-        (transfer) =>
-          transfer.toAccountId === nodeId && transfer.status === "pending",
-      ),
-    ),
-    pendingOutbound: sortNewest(
-      transfers.filter(
-        (transfer) =>
-          transfer.fromAccountId === nodeId && transfer.status === "pending",
-      ),
-    ),
+    sent: sortNewest(sent),
+    received: sortNewest(received),
+    pendingInbound: sortNewest(pendingInbound),
+    pendingOutbound: sortNewest(pendingOutbound),
   }
 }
 
@@ -239,9 +307,8 @@ export async function cantonInitiateTransfer(
   const receiverParty = await resolvePartyId(client, input.toAccountId)
 
   const evidenceHashes = normalizeAttachments(input.attachments)
+  await registerEvidenceMetadata(input.attachments)
 
-  // Mint the transferId up front so we can read the exact contract back by id
-  // rather than guessing via (from, to, quantity) heuristics.
   const transferId = `t-${nextCommandId("xfer")}`
 
   await client.submitAndWaitForTransaction(
@@ -265,11 +332,7 @@ export async function cantonInitiateTransfer(
     nextCommandId("initiate"),
   )
 
-  // Read back only the acting party's own state. Canton's per-party visibility
-  // is enforced by querying as the sender alone — never the counterparty —
-  // so the response cannot leak the receiver's holdings to the sender's UI.
   const snapshot = await snapshotForPartyViews(client, [input.partyViewId])
-
   const transfer = snapshot.transfers.find((item) => item.id === transferId)
 
   if (!transfer) {
@@ -295,6 +358,7 @@ export async function cantonAcceptTransfer(
     partyHintFromId(ledgerTransfer.receiver),
   )
 
+  const occurredAt = new Date().toISOString()
   const response = await client.submitAndWaitForTransaction(
     [partyId],
     [partyId, ledgerTransfer.sender],
@@ -304,22 +368,18 @@ export async function cantonAcceptTransfer(
           templateId: custodyTransferTemplateId(client),
           contractId: ledgerTransfer.contractId,
           choice: "AcceptTransfer",
-          choiceArgument: {},
+          choiceArgument: { occurredAt },
         },
       },
     ],
     nextCommandId("accept"),
   )
 
-  // Read back only the acting party's state (no counterparty leak). The
-  // CustodyTransfer is consumed by AcceptTransfer, so the result transfer is
-  // derived from the pre-action contract plus the committed outcome: the
-  // command succeeded, therefore status is accepted, and occurredAt comes from
-  // the ledger's effective time rather than the gateway clock.
   const snapshot = await snapshotForPartyViews(client, [input.partyViewId])
+  const metadataByHash = await loadEvidenceMetadataStore()
 
   const transfer: Transfer = {
-    ...mapCustodyTransferToTransfer(ledgerTransfer),
+    ...mapCustodyTransferToTransfer(ledgerTransfer, metadataByHash),
     status: "accepted",
     occurredAt: transactionTime(response),
   }
@@ -340,6 +400,7 @@ export async function cantonRejectTransfer(
     partyHintFromId(ledgerTransfer.receiver),
   )
 
+  const occurredAt = new Date().toISOString()
   const response = await client.submitAndWaitForTransaction(
     [partyId],
     [partyId, ledgerTransfer.sender],
@@ -349,19 +410,18 @@ export async function cantonRejectTransfer(
           templateId: custodyTransferTemplateId(client),
           contractId: ledgerTransfer.contractId,
           choice: "RejectTransfer",
-          choiceArgument: {},
+          choiceArgument: { occurredAt },
         },
       },
     ],
     nextCommandId("reject"),
   )
 
-  // Acting party (receiver) state only; reserved quantity returns to the
-  // sender so it correctly disappears from the receiver's read-back.
   const snapshot = await snapshotForPartyViews(client, [input.partyViewId])
+  const metadataByHash = await loadEvidenceMetadataStore()
 
   const transfer: Transfer = {
-    ...mapCustodyTransferToTransfer(ledgerTransfer),
+    ...mapCustodyTransferToTransfer(ledgerTransfer, metadataByHash),
     status: "rejected",
     occurredAt: transactionTime(response),
   }
@@ -399,6 +459,19 @@ export async function cantonCreateLot(
   const client = getClient()
   const ownerParty = await resolvePartyIdForView(client, input.partyViewId)
   const lotId = `lot-${nextCommandId("create")}`
+  const evidenceHashes = normalizeAttachments(input.attachments)
+  await registerEvidenceMetadata(input.attachments)
+
+  const createdAt = new Date().toISOString()
+  const originProvenance = [
+    toDamlProvenanceEntry({
+      fromParty: ownerParty,
+      toParty: ownerParty,
+      transferId: lotId,
+      evidenceHashes,
+      occurredAt: createdAt,
+    }),
+  ]
 
   const response = await client.submitAndWaitForTransaction(
     [ownerParty],
@@ -415,6 +488,7 @@ export async function cantonCreateLot(
             certifications: input.certifications.map(toDamlCertification),
             quality: toDamlQualityGrade(input.rating),
             originIdentifier,
+            provenance: originProvenance,
           },
         },
       },

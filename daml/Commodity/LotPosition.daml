@@ -5,6 +5,17 @@ import Commodity.Types
 data TransferStatus = Pending | Completed | Rejected
   deriving (Eq, Show)
 
+-- One hop in the privacy-preserving lineage carried forward on each lot.
+-- Party ids are mapped to operational node hints at the read layer.
+data ProvenanceEntry = ProvenanceEntry
+  with
+    fromParty : Party
+    toParty : Party
+    transferId : Text
+    evidenceHashes : [Text]
+    occurredAt : Text
+  deriving (Eq, Show)
+
 -- Order-independent certification-set equality: combine must not silently drop
 -- or reorder certifications.
 sameCertSet : [Certification] -> [Certification] -> Bool
@@ -24,6 +35,7 @@ template LotPosition
     certifications : [Certification]
     quality : QualityGrade
     originIdentifier : Optional Text
+    provenance : [ProvenanceEntry]
   where
     signatory owner
 
@@ -49,6 +61,7 @@ template LotPosition
           originIdentifier
           sourceLotId = lotId
           evidenceHashes
+          provenance
           status = Pending
         remainderCid <-
           if transferAmount < quantity.amount then do
@@ -87,6 +100,7 @@ template LotPosition
           certifications
           quality
           originIdentifier
+          provenance = provenance ++ other.provenance
 
 -- CustodyTransfer records an evidence-backed custody movement between parties.
 -- AcceptTransfer / RejectTransfer are receiver-controlled; reserved quantity
@@ -104,15 +118,24 @@ template CustodyTransfer
     originIdentifier : Optional Text
     sourceLotId : Text
     evidenceHashes : [Text]
+    provenance : [ProvenanceEntry]
     status : TransferStatus
   where
     signatory sender
     observer receiver
 
     choice AcceptTransfer : ContractId LotPosition
+      with
+        occurredAt : Text
       controller receiver
       do
         assertMsg "Transfer is not pending" (status == Pending)
+        let hop = ProvenanceEntry with
+              fromParty = sender
+              toParty = receiver
+              transferId
+              evidenceHashes
+              occurredAt
         create LotPosition with
           owner = receiver
           lotId = sourceLotId
@@ -121,8 +144,11 @@ template CustodyTransfer
           certifications
           quality
           originIdentifier
+          provenance = provenance ++ [hop]
 
     choice RejectTransfer : ContractId LotPosition
+      with
+        occurredAt : Text
       controller receiver
       do
         assertMsg "Transfer is not pending" (status == Pending)
@@ -134,3 +160,4 @@ template CustodyTransfer
           certifications
           quality
           originIdentifier
+          provenance

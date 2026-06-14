@@ -32,9 +32,25 @@ export type Account = {
   operator?: string
 }
 
+export type CustodyChainClaimType =
+  | "origin_attested"
+  | "chain_of_custody_continuous"
+
+/** One hop in the privacy-preserving lineage carried forward on a Canton lot. */
+export type CustodyChainEntry = {
+  fromAccountId: string
+  toAccountId: string
+  transferId: string
+  evidenceHashes: string[]
+  occurredAt: string
+  claimType: CustodyChainClaimType
+}
+
 export type Asset = {
   id: string
   accountId: string
+  /** Stable Canton lot identity (survives contractId churn on transfer). */
+  lotId?: string
   commodity: CommodityType
   certifications: Certification[]
   rating: Rating
@@ -48,6 +64,8 @@ export type Asset = {
    * original origin lots without rewriting prior custody state.
    */
   sourceLotIds?: string[]
+  /** Canton: full lineage carried on the lot (reaches origin across privacy boundaries). */
+  custodyChain?: CustodyChainEntry[]
 }
 
 export type TransferAttachment = {

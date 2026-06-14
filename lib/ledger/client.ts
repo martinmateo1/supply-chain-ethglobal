@@ -36,7 +36,11 @@ type TransactionResponse = {
         templateId?: string
         createArgument?: Record<string, unknown>
       }
-      ArchivedEvent?: { contractId?: string }
+      ArchivedEvent?: {
+        contractId?: string
+        templateId?: string
+        choice?: string
+      }
     }>
   }
 }
@@ -52,6 +56,11 @@ export type LedgerClient = {
     partyId: string,
     offset?: string,
   ) => Promise<ActiveContractRow[]>
+  queryUpdateFlats: (
+    partyId: string,
+    beginExclusive?: string,
+    endInclusive?: string,
+  ) => Promise<unknown[]>
   submitAndWaitForTransaction: (
     actAs: string[],
     readAs: string[],
@@ -186,6 +195,34 @@ export function createLedgerClient(config: LedgerClientConfig = {}): LedgerClien
           activeAtOffset,
         }),
       })
+    },
+
+    async queryUpdateFlats(partyId, beginExclusive = "0", endInclusive) {
+      const end = endInclusive ?? (await client.getLedgerEndOffset())
+      const payload = await jsonFetch<unknown[]>("/v2/updates/flats", {
+        method: "POST",
+        body: JSON.stringify({
+          beginExclusive,
+          endInclusive: end,
+          verbose: true,
+          filter: {
+            filtersByParty: {
+              [partyId]: {
+                cumulative: [
+                  {
+                    identifierFilter: {
+                      WildcardFilter: {
+                        value: { includeCreatedEventBlob: false },
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        }),
+      })
+      return Array.isArray(payload) ? payload : []
     },
 
     async submitAndWaitForTransaction(actAs, readAs, commands, commandId) {

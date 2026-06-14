@@ -35,6 +35,7 @@ export function originFingerprint(
 
 export function transferMatchesAsset(transfer: Transfer, asset: Asset): boolean {
   if (transfer.assetId === asset.id) return true
+  if (asset.lotId && transfer.assetId === asset.lotId) return true
 
   const sameBatch =
     transfer.commodity === asset.commodity &&

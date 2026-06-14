@@ -4,4 +4,4 @@ import * as Scripts from './Scripts';
 export { Commodity };
 export { Scripts };
 
-export declare const packageId = 'f436614e76f9eae1bd3e287af6eeacf7c45bb5f4565e9dd1bb3a93b76568c582';
+export declare const packageId = 'b8a4d450d2bfc6083baee7c4b059e8ad17ba996f8219d1d0aa114074e0b63294';
