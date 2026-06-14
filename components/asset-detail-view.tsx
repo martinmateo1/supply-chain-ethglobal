@@ -31,7 +31,15 @@ import {
   tokenId,
   transferMatchesAsset,
 } from "@/lib/provenance"
+import { useLedgerConfig } from "@/hooks/use-ledger-config"
+import { useLedgerSync } from "@/hooks/use-ledger-sync"
 import { buildProvenanceTimeline } from "@/lib/demo/custody-service"
+import {
+  buildCustodyPathFromChain,
+  immediatePredecessorForAsset,
+  redactAccountLabel,
+  transfersFromCustodyChain,
+} from "@/lib/ledger/custody-chain"
 import { partyViewById, partyViewLabel } from "@/lib/demo/party-views"
 import { useTraceabilityStore } from "@/lib/store"
 import {
@@ -62,6 +70,9 @@ function transfersVisibleToParty(
 }
 
 export function AssetDetailView({ assetId }: AssetDetailViewProps) {
+  useLedgerSync()
+  const { isCantonBackend } = useLedgerConfig()
+
   const assets = useTraceabilityStore((state) => state.assets)
   const transfers = useTraceabilityStore((state) => state.transfers)
   const accounts = useTraceabilityStore((state) => state.accounts)
@@ -85,14 +96,18 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
   const relatedTransfers = useMemo(() => {
     if (!asset) return []
 
+    if (isCantonBackend && asset.custodyChain && asset.custodyChain.length > 0) {
+      return transfersFromCustodyChain(asset)
+    }
+
     return transfers
       .filter((transfer) => transferMatchesAsset(transfer, asset))
-          .sort(
-            (a, b) =>
-              new Date(b.occurredAt ?? b.createdAt).getTime() -
-              new Date(a.occurredAt ?? a.createdAt).getTime()
-          )
-  }, [asset, transfers])
+      .sort(
+        (a, b) =>
+          new Date(b.occurredAt ?? b.createdAt).getTime() -
+          new Date(a.occurredAt ?? a.createdAt).getTime()
+      )
+  }, [asset, isCantonBackend, transfers])
   const isVisible = useMemo(() => {
     if (!asset) return false
     return isAssetVisibleToSelectedParty(assetId)
@@ -131,10 +146,50 @@ export function AssetDetailView({ assetId }: AssetDetailViewProps) {
   )
   const provenanceTimeline = useMemo(() => {
     if (!asset) return []
+
+    if (isCantonBackend && asset.custodyChain && asset.custodyChain.length > 0) {
+      const path = buildCustodyPathFromChain(asset)
+      const predecessor = immediatePredecessorForAsset(asset)
+      return path.map((step, index) => ({
+        operationType: index === 0 ? ("origin" as const) : ("transfer" as const),
+        fromAccountId:
+          index === 0
+            ? null
+            : redactAccountLabel(
+                path[index - 1]?.accountId ?? step.accountId,
+                visibilityPartyId,
+                asset.accountId,
+                predecessor,
+              ),
+        toAccountId: redactAccountLabel(
+          step.accountId,
+          visibilityPartyId,
+          asset.accountId,
+          predecessor,
+        ),
+        quantity: step.quantity,
+        beforeQuantity: null,
+        afterQuantity: null,
+        conserved: true,
+        sourceRefs: [],
+        derivedRefs: [],
+        transferId: step.transferId,
+        evidenceHashes: step.evidenceHashes,
+        occurredAt: step.occurredAt,
+      }))
+    }
+
     // Visibility-scoped: pass only the transfers this party may see so the
     // timeline never exposes another party's private custody steps (AC5).
     return buildProvenanceTimeline(asset, { assets, transfers }, partyTransfers)
-  }, [asset, assets, transfers, partyTransfers])
+  }, [
+    asset,
+    assets,
+    isCantonBackend,
+    partyTransfers,
+    transfers,
+    visibilityPartyId,
+  ])
 
   const pageShell = (content: ReactNode) => (
     <div className="flex h-svh w-full flex-col overflow-hidden">

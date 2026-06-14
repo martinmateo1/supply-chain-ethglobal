@@ -260,7 +260,9 @@ pnpm ledger:attempt-double-spend    # Daml rejects the second spend
 | `Another next dev server is already running` | A dev server is already on :3000 | `kill <PID>` then `pnpm dev`; env changes need a restart. |
 | `LEDGER_NOT_CONFIGURED` running a `ledger:*` script | `.env.local` missing or not loaded | Ensure `.env.local` exists (the scripts auto-load it); or pass `CANTON_*` env vars inline. |
 | `Script service exited unexpectedly` / heap errors | `JAVA_HOME` not Java 17 | `export JAVA_HOME=.../temurin-17.jdk/Contents/Home`. |
-| `PACKAGE_SERVICE_CANNOT_AUTODETECT_SYNCHRONIZER` on bring-up | Sandbox JSON API up before synchronizer connected | Re-run `pnpm run ledger:bringup` (the script retries automatically). If it persists, stop the sandbox (`lsof -ti:6864 \| xargs kill`) and bring up again. |
+| Custody history empty after accept | Prior builds only queried active contracts; accepted `CustodyTransfer` contracts are archived | Rebuild Daml (`dpm build`), run `pnpm run ledger:bringup`, update `CANTON_PACKAGE_ID`, restart `pnpm dev`. History now merges `/v2/updates/flats` with active pending transfers. |
+| Asset detail custody/evidence empty | Asset page was not syncing ledger state; lot matching used contract id instead of `lotId` | Fixed in app: asset detail calls ledger sync; lots carry `provenance` on-ledger mapped to `custodyChain`. Re-seed or create new lots after redeploy. |
+| Proof filename shows as hash only | Ledger stores hash-only; metadata is off-ledger in `.data/evidence-metadata.json` | Expected for Canton mode. Upload again after redeploy to register metadata; hashes remain on-ledger. |
 
 ---
 
@@ -272,7 +274,9 @@ pnpm ledger:attempt-double-spend    # Daml rejects the second spend
 | `daml/Scripts/SetupDemo.daml` | Party allocation + seed lots |
 | `daml/Test/TraceabilityTest.daml` | Daml Script tests (happy path, double-spend, reject) |
 | `lib/ledger/gateway.ts` | `LEDGER_BACKEND` dispatch (demo vs canton) |
-| `lib/ledger/client.ts` | Canton JSON API v2 client |
+| `lib/ledger/canton-custody-service.ts` | Canton adapter: active contracts + transaction history + provenance mapping |
+| `lib/ledger/transaction-history.ts` | Folds archived `CustodyTransfer` events into completed history |
+| `lib/ledger/evidence-metadata-store.ts` | Off-ledger hash → filename metadata (Canton proofs) |
 | `lib/ledger/generated/` | `dpm codegen-js` output (do not hand-edit) |
 | `app/api/ledger/*` | Gateway routes consumed by the UI |
 | `scripts/ledger-bringup.sh` | Idempotent local ledger bring-up |

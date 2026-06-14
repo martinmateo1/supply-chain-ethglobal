@@ -20,6 +20,7 @@ const lotPayload = {
   certifications: ["NonGMO", "DeforestationFree"],
   quality: "GradeA",
   originIdentifier: "origin-huila-001",
+  provenance: [],
 }
 
 const transferPayload = {
@@ -33,6 +34,7 @@ const transferPayload = {
   originIdentifier: null,
   sourceLotId: "lot-1",
   evidenceHashes: ["0xabc", "0xdef"],
+  provenance: [],
   status: "Pending",
 }
 
@@ -52,6 +54,7 @@ describe("mapLotPositionToAsset", () => {
     const asset = mapLotPositionToAsset(lot, "production-site")
     expect(asset).toMatchObject({
       id: "cid-1",
+      lotId: "lot-1",
       accountId: "production-site",
       commodity: "coffee",
       rating: "A",
@@ -103,7 +106,7 @@ describe("mapCustodyTransferToTransfer", () => {
       createdAt: "2026-06-13T12:00:00Z",
     })
     expect(result.attachments).toHaveLength(2)
-    expect(result.attachments?.[0]).toMatchObject({ hash: "0xabc" })
+    expect(result.attachments?.[0]).toMatchObject({ hash: "0xabc", name: "0xabc" })
     expect(result.sourceProvenanceRef).toBeUndefined()
   })
 

@@ -12,6 +12,7 @@ import * as pkg9e70a8b3510d617f8a136213f33d6a903a10ca0eeec76bb06ba55d1ed9680f69 
 import * as Commodity_Types from '../../Commodity/Types/module';
 
 export declare type AcceptTransfer = {
+  occurredAt: string,
 }
 
 export declare const AcceptTransfer:
@@ -36,6 +37,7 @@ export declare type CustodyTransfer = {
   originIdentifier: damlTypes.Optional<string>,
   sourceLotId: string,
   evidenceHashes: string[],
+  provenance: ProvenanceEntry[],
   status: TransferStatus,
 }
 
@@ -73,6 +75,7 @@ export declare type LotPosition = {
   certifications: Commodity_Types.Certification[],
   quality: Commodity_Types.QualityGrade,
   originIdentifier: damlTypes.Optional<string>,
+  provenance: ProvenanceEntry[],
 }
 
 export declare interface LotPositionInterface {
@@ -91,7 +94,19 @@ export declare const LotPosition:
   damlTypes.ToInterface<LotPosition, never> &
   LotPositionInterface
 
+export declare type ProvenanceEntry = {
+  fromParty: damlTypes.Party,
+  toParty: damlTypes.Party,
+  transferId: string,
+  evidenceHashes: string[],
+  occurredAt: string,
+}
+
+export declare const ProvenanceEntry:
+  damlTypes.Serializable<ProvenanceEntry>
+
 export declare type RejectTransfer = {
+  occurredAt: string,
 }
 
 export declare const RejectTransfer:

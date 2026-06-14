@@ -1,6 +1,7 @@
 /.daml
 /log
 node_modules/
+.data/
 
 # Local Cursor MCP config (may contain tokens)
 .cursor/mcp.json

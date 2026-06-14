@@ -1,4 +1,11 @@
 import { LedgerError, LedgerErrorCode } from "@/lib/ledger/errors"
+import {
+  mapLedgerProvenanceToCustodyChain,
+  parseLedgerProvenancePayload,
+} from "@/lib/ledger/custody-chain"
+import type {
+  StoredEvidenceMetadata,
+} from "@/lib/ledger/evidence-metadata-store"
 import type { Asset, Certification, Rating, Transfer, TransferAttachment } from "@/lib/types"
 
 export type LedgerLotPosition = {
@@ -11,6 +18,7 @@ export type LedgerLotPosition = {
   certifications: string[]
   quality: string
   originIdentifier?: string | null
+  provenance: ReturnType<typeof parseLedgerProvenancePayload>
 }
 
 export type LedgerCustodyTransfer = {
@@ -26,6 +34,7 @@ export type LedgerCustodyTransfer = {
   originIdentifier?: string | null
   sourceLotId: string
   evidenceHashes: string[]
+  provenance: ReturnType<typeof parseLedgerProvenancePayload>
   status: "Pending" | "Completed" | "Rejected"
   createdAt?: string
 }
@@ -126,6 +135,7 @@ export function mapLotPayloadToLedgerLot(
       payload.originIdentifier === null || payload.originIdentifier === undefined
         ? null
         : String(payload.originIdentifier),
+    provenance: parseLedgerProvenancePayload(payload.provenance),
   }
 }
 
@@ -155,17 +165,45 @@ export function mapTransferPayloadToLedgerTransfer(
     evidenceHashes: Array.isArray(payload.evidenceHashes)
       ? payload.evidenceHashes.map(String)
       : [],
+    provenance: parseLedgerProvenancePayload(payload.provenance),
     status: parseTransferStatus(payload.status ?? "Pending"),
     createdAt,
   }
 }
 
+function evidenceAttachments(
+  transferId: string,
+  hashes: string[],
+  metadataByHash?: Record<string, StoredEvidenceMetadata>,
+): TransferAttachment[] {
+  return hashes.map((hash, index) => {
+    const metadata = metadataByHash?.[hash]
+    return {
+      id: `att-${transferId}-${index}`,
+      name: metadata?.name ?? hash,
+      mimeType: metadata?.mimeType ?? "application/octet-stream",
+      size: metadata?.size ?? 0,
+      hash,
+      ...(metadata?.documentType
+        ? { documentType: metadata.documentType }
+        : {}),
+      ...(metadata?.issuer ? { issuer: metadata.issuer } : {}),
+      ...(metadata?.timestamp ? { timestamp: metadata.timestamp } : {}),
+    }
+  })
+}
+
 export function mapLotPositionToAsset(
   lot: LedgerLotPosition,
   accountId: string,
+  metadataByHash?: Record<string, StoredEvidenceMetadata>,
 ): Asset {
+  const custodyChain = mapLedgerProvenanceToCustodyChain(lot.provenance)
+  const originHashes = custodyChain[0]?.evidenceHashes ?? []
+
   return {
     id: lot.contractId,
+    lotId: lot.lotId,
     accountId,
     commodity: mapCommodity(lot.commodity),
     certifications: lot.certifications.map(mapCertification),
@@ -173,20 +211,27 @@ export function mapLotPositionToAsset(
     quantity: parseAmount(lot.amount, "lot quantity"),
     unit: "tons",
     ...(lot.originIdentifier ? { originIdentifier: lot.originIdentifier } : {}),
+    ...(originHashes.length > 0
+      ? {
+          originEvidence: evidenceAttachments(
+            lot.lotId,
+            originHashes,
+            metadataByHash,
+          ),
+        }
+      : {}),
+    ...(custodyChain.length > 0 ? { custodyChain } : {}),
   }
 }
 
 export function mapCustodyTransferToTransfer(
   transfer: LedgerCustodyTransfer,
+  metadataByHash?: Record<string, StoredEvidenceMetadata>,
 ): Transfer {
-  const attachments: TransferAttachment[] = transfer.evidenceHashes.map(
-    (hash, index) => ({
-      id: `att-${transfer.transferId}-${index}`,
-      name: `evidence-${index + 1}`,
-      mimeType: "application/octet-stream",
-      size: 0,
-      hash,
-    }),
+  const attachments = evidenceAttachments(
+    transfer.transferId,
+    transfer.evidenceHashes,
+    metadataByHash,
   )
 
   return {
@@ -205,5 +250,23 @@ export function mapCustodyTransferToTransfer(
       ? { sourceProvenanceRef: transfer.originIdentifier }
       : {}),
     ...(attachments.length > 0 ? { attachments } : {}),
+  }
+}
+
+export function toDamlProvenanceEntry(
+  entry: {
+    fromParty: string
+    toParty: string
+    transferId: string
+    evidenceHashes: string[]
+    occurredAt: string
+  },
+): Record<string, unknown> {
+  return {
+    fromParty: entry.fromParty,
+    toParty: entry.toParty,
+    transferId: entry.transferId,
+    evidenceHashes: entry.evidenceHashes,
+    occurredAt: entry.occurredAt,
   }
 }

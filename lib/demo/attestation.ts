@@ -17,6 +17,7 @@ import {
   type CustodyPathStep,
   type CustodySnapshot,
 } from "@/lib/demo/custody-service"
+import { buildCustodyPathFromChain } from "@/lib/ledger/custody-chain"
 import { canonicalHash } from "@/lib/demo/canonical-hash"
 import { partyViewById } from "@/lib/demo/party-views"
 import { isPrivatePartyView } from "@/lib/provenance"
@@ -173,7 +174,10 @@ export function evaluateAttestationReadiness(
           (t) => t.fromAccountId === nodeId || t.toAccountId === nodeId
         )
 
-  const path = buildCustodyPath(asset, visibleTransfers)
+  const path =
+    asset.custodyChain && asset.custodyChain.length > 0
+      ? buildCustodyPathFromChain(asset)
+      : buildCustodyPath(asset, visibleTransfers)
   const custodyPath = path.map(projectStep)
   const evidenceRefs = Array.from(
     new Set(custodyPath.flatMap((s) => s.evidenceHashes))
