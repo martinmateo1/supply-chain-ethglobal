@@ -34,7 +34,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-06-13
-last_updated: 2026-06-13T23:10:00Z
+last_updated: 2026-06-13T23:55:00Z
 project: hackaton
 project_key: NOKEY
 tracking_system: file-system
@@ -61,11 +61,11 @@ development_status:
   3-3-outbound-storage-transfer-across-the-demo-route: review
   3-4-provenance-timeline-and-anti-double-spend-checks: review
   epic-3-retrospective: optional
-  epic-4: backlog
-  4-1-attestation-readiness-panel: backlog
-  4-2-generate-custody-chain-attestation: backlog
-  4-3-in-app-verifier-view: backlog
-  4-4-evidence-binding-and-privacy-verification: backlog
+  epic-4: in-progress
+  4-1-attestation-readiness-panel: review
+  4-2-generate-custody-chain-attestation: review
+  4-3-in-app-verifier-view: review
+  4-4-evidence-binding-and-privacy-verification: review
   epic-4-retrospective: optional
   epic-5: in-progress
   5-1-daml-custody-model-choices-and-conservation: review
